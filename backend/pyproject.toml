@@ -1,0 +1,22 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# The app's async engine (app/db/session.py) is a module-level singleton
+# whose asyncpg connections bind to whichever event loop is active on first
+# use. Function-scoped loops (pytest-asyncio's default) break every test
+# after the first one that touches the database with "Event loop is
+# closed" - pin the fixture loop to the session so it matches the engine's
+# actual lifetime.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# B008: FastAPI's Depends(...)-as-default-argument is the documented,
+# idiomatic pattern (FastAPI special-cases it - it is not the mutable
+# default argument footgun this rule normally guards against).
+ignore = ["B008"]

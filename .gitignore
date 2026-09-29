@@ -1,0 +1,14 @@
+# Editor/office lock files (LibreOffice/OnlyOffice/MS Office)
+.~lock.*#
+~$*
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Local, machine-specific Claude Code state (not shared config)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Backend and frontend each have their own .gitignore for
+# .venv/, node_modules/, .env, caches, build output, etc.

@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Local-filesystem attachment storage fallback (app/services/storage.py) -
+# may contain uploaded file content, never commit it.
+var/
