@@ -45,15 +45,54 @@ requires_db` split already documented elsewhere in this file. **The live
 Supabase database was not connected to or modified in any way during this
 step.**
 
-**Frontend environment**: `frontend/node_modules` already exists on disk (from
-prior work), but **no Node.js runtime, npm, or any Node version manager is
-installed anywhere on this Fedora machine.** This is a genuine blocker: no
-`npm install`, `tsc`, `vite build`, or `oxlint` check could be run. This was not
-worked around by installing Node.js in this step, since doing so means changing
-system-wide packages, which was not explicitly in scope here (only backend
-Python dependencies, inside their own project-local venv, were authorized).
-`package.json`, lockfile, `vite.config.ts`, and `tsconfig*.json` were inspected
-directly (file reads only); their content is otherwise unchanged.
+**Frontend environment (completed 2026-09-29, follow-up step)**: Node.js 20.20.2
+(the LTS line, matching Fedora 44's own `nodejs20` package version exactly) and
+npm 10.8.2 were installed from the official upstream Node.js binary tarball
+(sha256-verified against nodejs.org's published checksum), placed at
+`~/.local/opt/node-v20.20.2-linux-x64` with `node`/`npm`/`npx` symlinked into
+`~/.local/bin` (already on `PATH`) — no system package manager privileges were
+available in this environment (`dnf install` requires root and interactive
+`sudo` needs a password not obtainable non-interactively here), so a system
+`dnf` install was not used; this was confirmed as the same official binary
+`dnf` would have installed, not a third-party script.
+
+`npm ci` (matching the existing `package-lock.json`) installed all 354 packages
+cleanly with 0 vulnerabilities; the lockfile and `package.json` were not
+modified. Running the project's actual lint (`oxlint`) and build
+(`tsc -b && vite build`) commands directly (see note below) gave:
+
+- **Lint**: PASS — 0 errors, 57 pre-existing warnings (unused imports/variables,
+  a few React-hooks style suggestions). Not fixed, per this step's scope.
+- **TypeScript (`tsc -b`)**: **FAILS** with 3 real, pre-existing type errors —
+  `src/components/ui/Card.tsx` (`CardProps.title` incompatible with
+  `HTMLAttributes<HTMLDivElement>`'s `title: string | undefined`), `src/main.tsx`
+  (an import path ending in `.tsx` without `allowImportingTsExtensions`), and
+  `src/pages/auth/LoginPage.tsx` (a duplicate `minHeight` key in one object
+  literal, line 61 — also flagged separately by oxlint as `no-dupe-keys`). None
+  of these were fixed, per this step's scope — see "Problems Discovered" below.
+- **Vite build + PWA plugin**: PASS when run independently of `tsc` — `vite
+  build` alone produces a working `dist/` with `manifest.webmanifest`, `sw.js`,
+  and the Workbox precache correctly generated. Because the project's actual
+  `build` script is `tsc -b && vite build`, the combined script would stop at
+  the `tsc` failure before reaching `vite build`; the two were verified
+  separately here specifically to isolate that the bundler/PWA pipeline itself
+  is sound and the blocker is purely the 3 TypeScript errors above.
+
+Note on invocation: `npm run lint`/`npm run build` themselves cannot be used
+via their normal names in this project's location — `npm` scripts work by
+prepending `node_modules/.bin` to `PATH`, and this project's own path contains a
+literal `:` (the same character discussed above for the Python venv), which
+silently truncates `PATH` at that character and makes every locally-installed
+binary (`oxlint`, `tsc`, `vite`, and by extension any other CLI added later)
+unresolvable via bare-name/`PATH` lookup — even though the binaries are present
+and executable. The exact same underlying commands were instead invoked by
+their file path directly (`./node_modules/.bin/oxlint`, `./node_modules/.bin/tsc
+-b`, `./node_modules/.bin/vite build`), which are unaffected since they bypass
+`PATH` resolution entirely. **This is a structural, ongoing risk beyond just
+this one check** — any future `npm run <script>`, git hook, or editor
+integration that relies on `PATH`-based local-binary resolution will silently
+fail the same way in this exact project location, for as long as its parent
+directory name contains a `:`.
 
 **Explicitly not done in this step** (by design, deferred to later controlled
 steps): reconciling migration `0011`, connecting to or verifying the live
