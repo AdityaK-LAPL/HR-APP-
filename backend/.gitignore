@@ -1,6 +1,10 @@
 __pycache__/
 *.pyc
-.venv/
+# No trailing slash: also matches when .venv is a symlink (this project's
+# real venv lives outside the repo at ~/.venvs/, because Python's venv
+# module refuses to create an environment inside a path containing ':',
+# which the parent "antigravity-ide:/HR APP Antigravity" directory has).
+.venv
 venv/
 .env
 .pytest_cache/

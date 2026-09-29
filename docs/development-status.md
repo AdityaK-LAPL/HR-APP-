@@ -2,7 +2,64 @@
 
 Last updated: 2026-09-23
 
-## Current Phase: Phase 7 — Testing, Security, Documentation, Performance (implemented, DB verification pending)
+## Linux (Fedora) environment baseline — 2026-09-29
+
+This section records the outcome of migrating this project to a new Fedora/Linux
+development machine and establishing a Linux-native development baseline. It does
+**not** change or re-verify any claim in the rest of this document below (those
+phase statuses are unchanged and still describe the backend as "implemented, DB
+verification pending"). It only records what was verified about the *environment
+itself* on this machine.
+
+**Git**: this project had no version control at all until this step (confirmed on
+both this Fedora copy and the historical Windows source folder). Git was
+initialized at the project root and an initial safety-checkpoint commit was made
+containing the existing backend, frontend, and docs as-is. No secrets, `.env`
+files, virtual environments, or `node_modules` were committed.
+
+**Python/backend environment**: the repository's own `backend/.venv` was a
+Windows-created virtual environment (Windows paths, `Scripts/` layout, Python
+3.14) and could not be used on Linux. It was moved out of the project entirely
+(preserved, not deleted) rather than overwritten. A genuine Linux-native venv
+could **not** be created at the conventional `backend/.venv` path because
+Python's `venv` module refuses to create an environment inside a path containing
+a `:` character, which the parent directory
+(`.../antigravity-ide:/HR APP Antigravity`) contains — this is a hard OS/Python
+constraint (`:` is the POSIX `PATH` separator), not a project misconfiguration.
+The real venv was created instead at `~/.venvs/hr-app-antigravity-backend`
+(Linux Python 3.14.7, matching the version already targeted on Windows), with
+`backend/.venv` kept as a symlink to it so existing tooling/docs referencing
+`.venv/bin/activate` continue to work unchanged.
+
+All dependencies from `requirements-dev.txt` (which includes `requirements.txt`)
+were installed into that venv at the versions already pinned in those files — no
+dependency was upgraded, added, or removed beyond what those files specify.
+`fastapi`, `sqlalchemy`, `asyncpg`, `alembic`, `pydantic`, `pytest`,
+`argon2-cffi`, and `pyjwt` all import successfully. `app.main` imports cleanly
+and registers all 88 routes (no database connection is opened at import time).
+`ruff check app tests` passes with no findings. Running `pytest` (with no
+`DATABASE_URL` exported, so `tests/conftest.py`'s reachability check correctly
+targets an unreachable local placeholder database rather than the real Supabase
+project) produced **23 passed, 89 skipped, 0 failed** — the same DB-free/`
+requires_db` split already documented elsewhere in this file. **The live
+Supabase database was not connected to or modified in any way during this
+step.**
+
+**Frontend environment**: `frontend/node_modules` already exists on disk (from
+prior work), but **no Node.js runtime, npm, or any Node version manager is
+installed anywhere on this Fedora machine.** This is a genuine blocker: no
+`npm install`, `tsc`, `vite build`, or `oxlint` check could be run. This was not
+worked around by installing Node.js in this step, since doing so means changing
+system-wide packages, which was not explicitly in scope here (only backend
+Python dependencies, inside their own project-local venv, were authorized).
+`package.json`, lockfile, `vite.config.ts`, and `tsconfig*.json` were inspected
+directly (file reads only); their content is otherwise unchanged.
+
+**Explicitly not done in this step** (by design, deferred to later controlled
+steps): reconciling migration `0011`, connecting to or verifying the live
+Supabase schema/RLS, running the 89 `requires_db` backend tests against a real
+database, installing Node.js / running any frontend build or typecheck, and any
+frontend or backend feature/bug work.
 
 Phase 1 is complete and fully verified. Phases 2 through 7 are fully implemented but **not yet run against a real PostgreSQL database** — this environment still has no reachable Postgres. Per the user's explicit direction, each phase was built on top of the previous unverified phase rather than waiting; all now share the same "implemented, DB verification pending" status and will be verified together in one pass once a database is available. Everything that *can* be verified without a database (imports cleanly, all 88 routes wire up, lints clean, and 21 pure unit tests — the original 11, 6 for local attachment storage, and 4 for the new rate limiter) has been verified after every change.
 
