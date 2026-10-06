@@ -159,6 +159,9 @@ async def test_cannot_cancel_leave_after_it_has_been_decided(client, db_session)
     m_headers = await login(client, employee_code="MGR408", password="InitialPass123!")
     await client.post(f"/api/v1/leaves/{leave_id}/approve", json={}, headers=m_headers)
 
+    # One client holds one cookie jar: the manager's login replaced the
+    # employee's session - log back in as the employee before cancelling.
+    e_headers = await login(client, employee_code="EMP408", password="InitialPass123!")
     cancel_response = await client.post(f"/api/v1/leaves/{leave_id}/cancel", headers=e_headers)
     assert cancel_response.status_code == 422
 
