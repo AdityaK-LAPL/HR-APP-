@@ -472,6 +472,12 @@ No table in this schema issues a hard `DELETE` from the application layer except
 ## 13. Indexing & Search Notes
 
 - `pg_trgm` extension recommended for fuzzy/partial search on `customers.name`, `machines.model_name`, `machines.serial_number`, `users.name` (per §27 search requirements).
+- **Measured indexes (migration `0012`, 2026-10-06)** - from `EXPLAIN ANALYZE` on a synthetic dataset (300k tasks, 60k service calls, 90k service assignments, 180k attendance days, 3.1k users in a 3-level manager tree), run inside a rolled-back transaction:
+  - `ix_tasks_task_date_created_at` on `tasks (task_date DESC NULLS LAST, created_at DESC)` - backs `list_tasks`' newest-first ordering. Owner page 1: 612 ms -> 6.6 ms; manager subtree page: ~470-550 ms -> 6-9 ms (seq scan + full sort replaced by an index walk that stops after one page).
+  - `ix_service_calls_created_at` on `service_calls (created_at DESC)` - backs `list_service_calls`' ordering. Manager list: 187 ms -> 25 ms.
+  - Measured and **not** added (the planner never chose them): `tasks(assigned_by)`, partial `service_assignments(service_call_id) WHERE is_active`.
+  - Already adequate: employee-scoped task/service-call lists (<=10 ms), closure-table lookups (index-only scans on the PK), customer name search (uses `ix_customers_name`), calendar and attendance-report queries.
+  - Known limits left as-is: `ILIKE '%...%'` on `service_calls.service_call_code` and the second-level `customers`/`machines` search are seq scans (61 ms at 60k rows); `pg_trgm` GIN indexes are the fix if these grow. `COUNT(*)` for pagination totals and the manager task/status reports still scan the `tasks` table (~80-130 ms at 300k rows).
 - Composite indexes called out per-table above are the minimum set; additional indexes will be added as query patterns are profiled during implementation.
 
 ## 14. Migration Tooling

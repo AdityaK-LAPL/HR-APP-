@@ -5,7 +5,18 @@ See docs/database.md section 10 and context.md sections 16-23.
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, Float, ForeignKey, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    Float,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,6 +49,8 @@ class ServiceCall(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         CheckConstraint("priority in ('low','medium','high','urgent')", name="priority_valid"),
         CheckConstraint(f"service_type in {SERVICE_TYPES!r}", name="service_type_valid"),
         CheckConstraint(f"status in {SERVICE_CALL_STATUSES!r}", name="status_valid"),
+        # Backs list_service_calls' ORDER BY created_at DESC (migration 0012).
+        Index("ix_service_calls_created_at", text("created_at DESC")),
     )
 
     service_call_code: Mapped[str] = mapped_column(

@@ -3,7 +3,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, String, Text, func
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,12 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         CheckConstraint(f"status in {TASK_STATUSES!r}", name="status_valid"),
         CheckConstraint(f"priority in {TASK_PRIORITIES!r}", name="priority_valid"),
+        # Backs list_tasks' ORDER BY task_date DESC NULLS LAST, created_at DESC (migration 0012).
+        Index(
+            "ix_tasks_task_date_created_at",
+            text("task_date DESC NULLS LAST"),
+            text("created_at DESC"),
+        ),
     )
 
     title: Mapped[str] = mapped_column(String(200), nullable=False)

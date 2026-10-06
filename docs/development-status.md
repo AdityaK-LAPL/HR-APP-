@@ -2,6 +2,29 @@
 
 Last updated: 2026-09-28
 
+## Performance review (Prompt 3) - 2026-10-06
+
+Run against the real Supabase project (PostgreSQL 17.6) with a synthetic dataset created and **rolled back** inside one transaction (nothing left behind): 3,110 users in a 3-level tree (12,326 closure rows), 300k tasks, 50k leave requests, 180k attendance days, 5k customers, 20k machines, 60k service calls, 90k assignments. Query shapes were copied from `task_service`, `service_call_service`, `report_service` and `calendar_service`. Absolute timings include a remote link only for the connection, not for execution - `EXPLAIN ANALYZE` execution time is server-side.
+
+| Query (as the app runs it today) | Before | After 0012 | Cause |
+|---|---|---|---|
+| Owner task list, page 1 | 612 ms | 6.6 ms | seq scan + sort of all 300k rows |
+| Manager task list, page 1 (top / sub-manager) | 547 / 468 ms | 5.9 / 8.9 ms | seq scan, `assigned_by OR assigned_to IN (...)` |
+| Manager service-call list | 187 ms | 25 ms | seq scan on `service_calls` |
+| Employee task / service-call lists | 5 / 10 ms | 3 / 1 ms | already indexed |
+| Manager task count (pagination total) | 693 ms* | 77 ms | table scan (*first run was cold-cache) |
+| Task report, workload report, attendance report, calendar | 290-570 ms | 90-245 ms (tasks) | closure-subtree joins; acceptable at this volume |
+| Customer name search | 2 ms | 2 ms | indexed |
+| `service_call_code ILIKE '%x%'` | 61 ms | 61 ms | seq scan (leading wildcard) - needs pg_trgm if it grows |
+
+**Indexes added (migration `0012`)**: `ix_tasks_task_date_created_at`, `ix_service_calls_created_at`. Upgrade, downgrade and re-upgrade were exercised on the dev database, and the full suite was re-run afterwards: 112 passed, 0 failed. Candidate indexes the planner did not use were not added.
+
+**Static review**: no `refresh()` calls and no lazy ORM relationships (so no hidden N+1 from the ORM); the only per-item query loops are three small loops over distinct manager IDs in `customer_service`, `machine_service` and `service_call_service` (bounded by the number of distinct managers); list endpoints are paginated with LIMIT/OFFSET, but `attendance_report`, `hierarchy` (Owner view), `calendar` and several sub-resource lists are not paginated - the first two grow with headcount.
+
+**IMPORTANT security/architecture finding (relevant to Prompt 2, not fixed here)**: the backend connects as the Supabase `postgres` role, which has `BYPASSRLS`, and `set_rls_context()` only sets the `app.user_id`/`app.user_role` GUCs - it never switches role. Verified directly: with GUCs set to a non-existent employee, the app connection still reads every user and task. **PostgreSQL RLS therefore does not constrain the application's own queries; it protects only the PostgREST roles (`anon`/`authenticated`). Application authorization is enforced by the service layer alone.** Making RLS a real second layer needs a dedicated `NOBYPASSRLS` application role and `SET LOCAL ROLE` per request - a security-model decision, deliberately not made in a performance pass. Performance evidence for that decision: with RLS actually enforced (`SET ROLE authenticated` + GUCs) the same manager task list/count/report took ~8.5 s and the manager service-call list ~35 s (2.7 s with the new index), because `current_app_in_scope()` is a per-row PL/pgSQL call the planner cannot inline. Those policy functions would need to be rewritten as set-based `EXISTS` against the closure table before enabling it.
+
+**Production monitoring recommendations**: enable `pg_stat_statements` and review the top queries weekly; log queries over ~500 ms (`log_min_duration_statement`); track `tasks`/`service_calls` table growth and re-run `EXPLAIN ANALYZE` on the list queries each time a table grows 5-10x; watch pooler connection saturation (Supabase caps client connections).
+
 ## Linux re-verification against live Supabase — 2026-10-06
 
 Prompts 1 and 2 of the 18-prompt plan (integration-test fixes; Supabase security/RLS audit) were originally done on the Windows machine. This section records what was re-verified from the Linux project against the real development Supabase database.
@@ -113,7 +136,7 @@ Supabase schema/RLS, running the 89 `requires_db` backend tests against a real
 database, installing Node.js / running any frontend build or typecheck, and any
 frontend or backend feature/bug work.
 
-## Current Phase: Verified against a live database; security-audited. Performance pass still pending.
+## Current Phase: Verified against a live database; security-audited. Performance pass done (Prompt 3; migration 0012).
 
 All 7 phases are implemented, and both of the previously-deferred passes are now complete: the full backend has been run against a real Supabase PostgreSQL database (all 10 migrations applied, full pytest suite genuinely executed — **112 passed, 0 failed, 0 errors** — see the "Database Verification Pass" section below), and a dedicated security/authorization audit was performed directly against that live database (see "Security & Authorization Audit" below and `docs/permissions.md` §10), which found and fixed one real RLS bug. The only work still explicitly deferred is the live-database performance pass (`EXPLAIN ANALYZE` on hierarchy/RLS-heavy queries) and an optional defense-in-depth `REVOKE` on Supabase's default `anon`/`authenticated` grants.
 
