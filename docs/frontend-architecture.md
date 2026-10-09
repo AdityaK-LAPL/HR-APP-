@@ -194,7 +194,7 @@ These are API facts, not frontend bugs. Each is small and additive; none is buil
 | Prompt | Frontend deliverable | Key definition of done |
 |---|---|---|
 | **6** Foundation + auth | Enable strict; add deps/tooling/tests; generate API types; delete mock layer + `can()` + demo logins + hand types; new `api/client` (refresh, CSRF, errors, offline); `AuthProvider` (`/auth/me`, `must_reset`, logout broadcast); route config + lazy routes + error boundaries; login + change-password screens; shell/nav from config; hardened UI primitives (Dialog, FormField…); PWA foundation changes; viewport/a11y fixes | Real login/logout/refresh/expiry works against the live API; `tsc`, lint, tests, build green; no mock code in the bundle |
-| 7 Employee | Tasks, projects, leave, EOD, attendance, profile, service work (assigned calls, visits, reports), attachments | Each flow works against the API with loading/empty/error states; names via `/users/directory` (D1 done); D3 decided first |
+| 7 Employee | **Done (2026-10-09)** - tasks, projects, leave, EOD, attendance, profile, service work (assigned calls, visits, reports), attachments | Each flow works against the API with loading/empty/error states; names via `/users/directory`; company-timezone dates |
 | 8 Manager | Team, task assignment, project allocation, leave approval, team EOD/attendance/calendar, service assignment, notifications | Scope shown is exactly what the API returns |
 | 9 Owner | Users, hierarchy, permissions (+`/permissions/me` consumers), audit log, admin screens | Only API-supported controls |
 | 10 Service | Customer → machine → call → assignment → visit → report workflow, technician mobile flow | |

@@ -5,8 +5,8 @@ The API it consumes is documented in [`docs/api-contract.md`](../docs/api-contra
 [`docs/openapi.json`](../docs/openapi.json). The backend is authoritative: the frontend holds no business rules, has no
 mock mode, and never touches the database.
 
-> Status: **Phase 1 (foundation + authentication) is real**: sign-in, session refresh, forced password change, role-aware
-> navigation. The module screens (tasks, leave, service, ...) are labelled placeholders until Prompts 7-12.
+> Status: foundation + authentication (Prompt 6) and the **Employee experience (Prompt 7)** are real. Manager and owner
+> screens, dashboards, notifications and PWA polish are labelled placeholders until Prompts 8-13.
 
 ## Commands
 
@@ -29,5 +29,6 @@ path contains a `:` which Vite/Vitest cannot handle (see `scripts/run-tests.mjs`
 
 ## Layout
 
-`src/api` (client, generated types) - `src/app` (routes, route config, guards, providers) - `src/features/*` (auth, permissions,
-people) - `src/components/{ui,feedback,layout}` - `src/lib` (dates, forms) - `src/test` (MSW double, render helper).
+`src/api` (client, generated types) - `src/app` (routes, route config, guards, role switch, providers) - `src/features/*`
+(auth, permissions, people, tasks, projects, leave, eod, attendance, service, attachments, dashboard, profile) -
+`src/components/{ui,data,feedback,layout}` - `src/lib` (dates, labels, forms, geolocation, URL params) - `src/test` (MSW double, fixtures, render helper).

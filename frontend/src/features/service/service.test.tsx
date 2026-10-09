@@ -191,3 +191,27 @@ describe('Service call detail', () => {
     expect(screen.getByText('Replaced bearings', { selector: 'dd' })).toBeInTheDocument()
   })
 })
+
+describe('Visit editing', () => {
+  it('offers Edit only on the employee\'s own visits', async () => {
+    setupCall([
+      http.get(`${BASE}/service-calls/c-1/visits`, () => HttpResponse.json([
+        visit,
+        { ...visit, id: 'v-2', employee_id: manager.id, work_performed: 'Manager walk-through' },
+      ])),
+    ])
+    renderApp('/service/c-1')
+    expect(await screen.findByText('Manager walk-through')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(1)
+  })
+})
+
+describe('Customer names in lists', () => {
+  it('falls back to a neutral label (not an endless "…") when the customer cannot be read', async () => {
+    setupCall([http.get(`${BASE}/customers/cust-1`, () => apiError(404, 'not_found', 'Customer not found.'))])
+    renderApp('/service')
+    const table = within(await screen.findByRole('table'))
+    expect(await table.findByRole('cell', { name: 'Customer' })).toBeInTheDocument()
+    expect(table.queryByText('…')).not.toBeInTheDocument()
+  })
+})

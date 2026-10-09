@@ -97,7 +97,10 @@ export function useMachine(id: string | undefined) {
   })
 }
 
-/** Names for the customers on a page of calls, one cached request per distinct customer. */
+/**
+ * Names for the customers on a page of calls, one cached request per distinct customer.
+ * "…" while loading; "Customer" if the record cannot be read (the API hides what you may not see).
+ */
 export function useCustomerNames(ids: readonly string[]) {
   const unique = [...new Set(ids)]
   const results = useQueries({
@@ -110,8 +113,9 @@ export function useCustomerNames(ids: readonly string[]) {
   })
   const names = new Map<string, string>()
   unique.forEach((id, index) => {
-    const name = results[index]?.data?.name
-    if (name) names.set(id, name)
+    const result = results[index]
+    if (result?.data?.name) names.set(id, result.data.name)
+    else if (result?.isError) names.set(id, 'Customer')
   })
   return (id: string) => names.get(id) ?? '…'
 }

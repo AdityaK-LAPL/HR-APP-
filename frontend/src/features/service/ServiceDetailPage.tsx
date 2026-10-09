@@ -11,6 +11,7 @@ import { PageHeader, Section } from '@/components/ui/PageHeader'
 import { Select } from '@/components/ui/fields'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
+import { useAuth } from '@/features/auth/authContext'
 import { usePeople } from '@/features/people/usePeople'
 import { formatDate, formatDateTime } from '@/lib/dates'
 import { CONTACT_METHOD, MACHINE_STATUS, PRIORITY, SERVICE_STATUS, SERVICE_TYPE, VISIT_TYPE, labelOf, optionsOf } from '@/lib/labels'
@@ -134,6 +135,7 @@ function StatusControl({ call }: { call: ServiceCall }) {
 
 export function ServiceDetailPage() {
   const { id = '' } = useParams()
+  const { user } = useAuth()
   const call = useServiceCall(id)
   const assignments = useAssignments(id)
   const visits = useVisits(id)
@@ -214,9 +216,12 @@ export function ServiceDetailPage() {
                             {visit.departure_time && <span>left {formatDateTime(visit.departure_time)}</span>}
                           </div>
                         </div>
-                        <Button size="sm" variant="outline" icon={<Pencil size={14} />} onClick={() => setVisitDialog({ open: true, visit })}>
-                          Edit
-                        </Button>
+                        {/* Only your own visits: a fact on the record; the server enforces it too. */}
+                        {visit.employee_id === user?.id && (
+                          <Button size="sm" variant="outline" icon={<Pencil size={14} />} onClick={() => setVisitDialog({ open: true, visit })}>
+                            Edit
+                          </Button>
+                        )}
                       </div>
                       {visit.work_performed && <p className="prose" style={{ marginTop: 8 }}>{visit.work_performed}</p>}
                       {visit.problem_found && <p className="meta-line">Problem: {visit.problem_found}</p>}
