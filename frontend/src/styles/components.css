@@ -1,0 +1,227 @@
+/* Component styles built on the tokens in index.css. Prefer these classes over inline styles. */
+
+/* ---- accessibility helpers ---- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 200;
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- buttons ---- */
+.btn { min-height: 44px; padding: 0 16px; font-size: 14px; }
+.btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
+.btn-lg { min-height: 48px; padding: 0 20px; font-size: 16px; }
+.btn-block { width: 100%; }
+
+/* ---- form fields ---- */
+.field { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.field-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.field-label .required { color: var(--danger); margin-left: 2px; }
+.field-control { position: relative; display: flex; align-items: center; }
+.field-icon {
+  position: absolute; left: 14px; display: inline-flex; align-items: center;
+  color: var(--text-muted); pointer-events: none;
+}
+.field-action { position: absolute; right: 6px; display: inline-flex; align-items: center; }
+.input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 16px; /* >=16px stops iOS Safari zooming on focus */
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input.has-icon { padding-left: 42px; }
+.input.has-action { padding-right: 48px; }
+.input:focus { border-color: var(--border-focus); box-shadow: 0 0 0 2px var(--primary-light); outline: none; }
+.input[aria-invalid='true'] { border-color: var(--danger); }
+.input[aria-invalid='true']:focus { box-shadow: 0 0 0 2px var(--danger-light); }
+.input:disabled { opacity: 0.6; cursor: not-allowed; }
+.field-hint { font-size: 12px; color: var(--text-muted); }
+.field-error { font-size: 12px; color: var(--danger); }
+
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 36px; min-height: 36px; border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+.icon-btn:hover { color: var(--text-primary); background: var(--bg-surface-elevated); }
+
+/* ---- alerts ---- */
+.alert {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+  border-radius: var(--radius-sm); font-size: 13px; color: var(--text-primary);
+  border: 1px solid transparent;
+}
+.alert svg { flex-shrink: 0; margin-top: 1px; }
+.alert-error { background: var(--danger-light); border-color: var(--danger-border); }
+.alert-error svg { color: var(--danger); }
+.alert-info { background: var(--primary-light); border-color: var(--primary-border); }
+.alert-info svg { color: var(--primary); }
+.alert-warning { background: var(--warning-light); border-color: var(--warning-border); }
+.alert-warning svg { color: var(--warning); }
+.alert-success { background: var(--success-light); border-color: var(--success-border); }
+.alert-success svg { color: var(--success); }
+
+/* ---- dialog (native <dialog>: focus trap, Esc and inert background come from the browser) ---- */
+.dialog {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  margin: auto;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.dialog::backdrop { background: rgba(2, 6, 23, 0.7); }
+.dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 0; }
+.dialog-title { font-size: 1.1rem; }
+.dialog-body { padding: 14px 20px; color: var(--text-secondary); overflow-y: auto; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 0 20px 18px; flex-wrap: wrap; }
+@media (max-width: 767px) {
+  /* bottom sheet on phones */
+  .dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding-bottom: var(--safe-bottom); }
+}
+
+/* ---- toasts ---- */
+.toast-region {
+  position: fixed; top: calc(12px + var(--safe-top)); right: 12px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 10px;
+  width: min(380px, calc(100vw - 24px)); pointer-events: none;
+}
+.toast {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px;
+  background: var(--bg-surface); border: 1px solid var(--border-default); border-left-width: 4px;
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); animation: toast-in 0.2s ease;
+}
+.toast-success { border-left-color: var(--success); }
+.toast-error { border-left-color: var(--danger); }
+.toast-info { border-left-color: var(--primary); }
+.toast-title { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.toast-message { font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* ---- banners ---- */
+.banner {
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+  padding: 8px 16px; font-size: 13px; text-align: center;
+}
+.banner-offline { background: var(--warning-light); color: var(--text-primary); border-bottom: 1px solid var(--warning-border); }
+.banner-update { background: var(--primary-light); color: var(--text-primary); border-bottom: 1px solid var(--primary-border); }
+
+/* ---- page chrome ---- */
+.page-header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
+.page-header p { font-size: 14px; }
+.center-screen {
+  min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; padding: 24px; text-align: center;
+}
+.auth-screen {
+  min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 20px; position: relative; overflow: hidden; background: var(--bg-app);
+}
+.auth-glow {
+  position: absolute; top: 18%; width: 320px; height: 320px; border-radius: 50%;
+  background: rgba(37, 99, 235, 0.12); filter: blur(80px); pointer-events: none;
+}
+.auth-card {
+  width: 100%; max-width: 420px; position: relative; z-index: 1;
+  background: var(--bg-surface); border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 32px 28px;
+}
+.auth-brand { text-align: center; margin-bottom: 24px; }
+.auth-brand img { width: 56px; height: 56px; margin: 0 auto 12px; }
+.auth-form { display: flex; flex-direction: column; gap: 18px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+
+/* ---- navigation (driven by app/route-config.tsx) ---- */
+.sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 18px 20px; border-bottom: 1px solid var(--border-subtle); font-weight: 700; }
+.sidebar-brand img { width: 30px; height: 30px; }
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 16px; }
+.nav-section-label { padding: 0 10px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.nav-link {
+  display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px;
+  border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 14px;
+}
+.nav-link:hover { background: var(--bg-surface-elevated); color: var(--text-primary); }
+.nav-link.active { background: var(--primary-light); color: var(--text-primary); }
+.sidebar-footer { padding: 12px; border-top: 1px solid var(--border-subtle); }
+
+.user-chip { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--primary-light); color: var(--text-primary); font-weight: 600; font-size: 13px;
+}
+.user-meta { display: none; flex-direction: column; min-width: 0; line-height: 1.2; }
+.user-meta strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-meta span { font-size: 11px; color: var(--text-muted); text-transform: capitalize; }
+@media (min-width: 768px) { .user-meta { display: flex; } }
+
+.menu { position: relative; }
+.menu-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 70; min-width: 220px;
+  background: var(--bg-surface); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 6px;
+}
+.menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 12px;
+  border-radius: var(--radius-sm); color: var(--text-primary); font-size: 14px; text-align: left;
+}
+.menu-item:hover { background: var(--bg-surface-elevated); }
+.menu-heading { padding: 8px 12px; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle); margin-bottom: 4px; }
+
+.mobile-more-sheet { padding: 8px 4px; max-height: 60vh; overflow-y: auto; }
+
+/* ---- definition list used on the foundation dashboard ---- */
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 10px 20px; font-size: 14px; }
+.facts dt { color: var(--text-muted); }
+.facts dd { color: var(--text-primary); overflow-wrap: anywhere; }
+
+.install-banner {
+  position: fixed; z-index: 50; left: 16px; right: 16px; max-width: 480px; margin: 0 auto;
+  bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 12px);
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px; box-shadow: var(--shadow-lg);
+}
+@media (min-width: 1024px) { .install-banner { bottom: 16px; } }
+
+.app-header-title { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

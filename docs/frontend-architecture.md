@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-Status: **Plan (Prompt 5, 2026-10-09) — no feature code written.** Prompts 6–13 implement it. The backend is authoritative: the frontend consumes `docs/api-contract.md` / `docs/openapi.json`, holds no business rules, and never touches PostgreSQL or Supabase directly.
+Status: **Plan (Prompt 5) — Phase 1 (Prompt 6: foundation + authentication) is implemented; Prompts 7–13 build on it.** See `development-status.md`, "Frontend Phase 1", for what was built and the deviations (route table split into `app/routes.tsx` + `app/router.tsx`; `usePeople` batches per id-set rather than per id; Vitest runs in a colon-free mirror because of the repository path). The backend is authoritative: the frontend consumes `docs/api-contract.md` / `docs/openapi.json`, holds no business rules, and never touches PostgreSQL or Supabase directly.
 
 Stack (kept): React 19, TypeScript, Vite 8, React Router 7, `vite-plugin-pwa`, `lucide-react`, oxlint. Stack (added, §3): TanStack Query, react-hook-form, `openapi-typescript`, Vitest + Testing Library + MSW.
 

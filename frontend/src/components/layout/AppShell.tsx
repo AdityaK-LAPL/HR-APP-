@@ -1,30 +1,26 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
-import { DesktopSidebar } from './DesktopSidebar';
-import { Header } from './Header';
-import { MobileNavBar } from './MobileNavBar';
-import { InstallBanner } from '@/components/feedback/InstallBanner';
+import { Outlet } from 'react-router-dom'
+import { InstallBanner } from '@/components/feedback/InstallBanner'
+import { UpdatePrompt } from '@/components/feedback/UpdatePrompt'
+import { Header } from './Header'
+import { MobileNav } from './MobileNav'
+import { Sidebar } from './Sidebar'
 
-export const AppShell: React.FC = () => {
+export function AppShell() {
   return (
     <div className="app-container">
-      {/* Desktop Navigation Sidebar (>= 1024px) */}
-      <DesktopSidebar />
-
-      {/* Main Content Area */}
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+      <Sidebar />
       <div className="main-content">
+        <UpdatePrompt />
         <Header />
-
-        <main className="page-wrapper">
+        <main id="main-content" className="page-wrapper" tabIndex={-1}>
           <Outlet />
         </main>
-
-        {/* Mobile Fixed Bottom Navigation (< 1024px) */}
-        <MobileNavBar />
-
-        {/* 1-Click PWA Install Promotion Banner */}
+        <MobileNav />
         <InstallBanner />
       </div>
     </div>
-  );
-};
+  )
+}

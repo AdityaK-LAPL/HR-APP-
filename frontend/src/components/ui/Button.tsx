@@ -1,45 +1,39 @@
-import React from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
-  loading?: boolean;
-  icon?: React.ReactNode;
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'ghost'
+  size?: 'sm' | 'md' | 'lg'
+  /** Shows a spinner and disables the button (also the double-submit guard for forms). */
+  loading?: boolean
+  block?: boolean
+  icon?: ReactNode
 }
 
-export const Button: React.FC<ButtonProps> = ({
+export function Button({
   children,
   variant = 'primary',
   size = 'md',
   loading = false,
+  block = false,
   icon,
   className = '',
   disabled,
-  style,
+  type = 'button',
   ...props
-}) => {
-  const sizeStyles: Record<'sm' | 'md' | 'lg', React.CSSProperties> = {
-    sm: { minHeight: '34px', padding: '0 12px', fontSize: '13px' },
-    md: { minHeight: '42px', padding: '0 16px', fontSize: '14px' },
-    lg: { minHeight: '48px', padding: '0 20px', fontSize: '16px' },
-  };
-
+}: ButtonProps) {
+  const classes = ['btn', `btn-${variant}`, size !== 'md' && `btn-${size}`, block && 'btn-block', className]
+    .filter(Boolean)
+    .join(' ')
   return (
     <button
-      className={`btn btn-${variant} ${className}`}
+      type={type}
+      className={classes}
       disabled={disabled || loading}
-      style={{
-        ...sizeStyles[size],
-        ...style,
-      }}
+      aria-busy={loading || undefined}
       {...props}
     >
-      {loading ? (
-        <span className="spinner" aria-hidden="true" />
-      ) : icon ? (
-        <span style={{ display: 'inline-flex', alignItems: 'center' }}>{icon}</span>
-      ) : null}
-      <span>{children}</span>
+      {loading ? <span className="spinner" aria-hidden="true" /> : icon}
+      {children}
     </button>
-  );
-};
+  )
+}

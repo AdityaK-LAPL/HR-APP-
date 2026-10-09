@@ -1,107 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import { Download, X } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Download, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/Button'
 
 interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
-export const InstallBanner: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isDismissed, setIsDismissed] = useState<boolean>(false);
+/** Offers "install as an app" when the browser says it can. Never shown once installed. */
+export function InstallBanner() {
+  const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-
-    window.addEventListener('beforeinstallprompt', handler);
-
-    // Also check if running in standalone mode (already installed)
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setDeferredPrompt(null);
+    const onBeforeInstall = (event: Event) => {
+      event.preventDefault()
+      setPromptEvent(event as BeforeInstallPromptEvent)
     }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall)
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall)
+  }, [])
 
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
-    };
-  }, []);
+  const installed =
+    typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches
+  if (!promptEvent || dismissed || installed) return null
 
-  if (!deferredPrompt || isDismissed) {
-    return null;
+  const install = async () => {
+    await promptEvent.prompt()
+    const { outcome } = await promptEvent.userChoice
+    if (outcome === 'accepted') setPromptEvent(null)
   }
 
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
-  };
-
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 'calc(var(--bottom-nav-height) + var(--safe-bottom) + 12px)',
-        left: '16px',
-        right: '16px',
-        maxWidth: '480px',
-        margin: '0 auto',
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        borderRadius: 'var(--radius-md)',
-        padding: '12px 16px',
-        boxShadow: 'var(--shadow-lg)',
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '12px',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--primary-light)',
-            color: 'var(--primary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <Download size={20} />
-        </div>
-        <div>
-          <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Install OpsFlow App</h4>
-          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
-            Faster access &amp; offline ready for mobile and desktop
-          </p>
-        </div>
+    <aside className="install-banner glass-card" aria-label="Install the app">
+      <Download size={20} aria-hidden="true" color="var(--primary)" />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <strong style={{ fontSize: 13 }}>Install OpsFlow</strong>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Open it like an app from your home screen or desktop.
+        </p>
       </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Button size="sm" variant="primary" onClick={handleInstallClick}>
-          Install
-        </Button>
-        <button
-          onClick={() => setIsDismissed(true)}
-          style={{
-            color: 'var(--text-muted)',
-            padding: '6px',
-            borderRadius: 'var(--radius-xs)',
-          }}
-        >
-          <X size={16} />
-        </button>
-      </div>
-    </div>
-  );
-};
+      <Button size="sm" onClick={() => void install()}>
+        Install
+      </Button>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label="Dismiss install suggestion"
+        onClick={() => setDismissed(true)}
+      >
+        <X size={16} />
+      </button>
+    </aside>
+  )
+}
