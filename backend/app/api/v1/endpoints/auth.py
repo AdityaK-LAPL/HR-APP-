@@ -9,6 +9,7 @@ from app.core.errors import AuthenticationError
 from app.core.rate_limit import rate_limit_login
 from app.db.session import get_db
 from app.schemas.auth import ChangePasswordRequest, LoginRequest, UserProfile
+from app.schemas.errors import ErrorResponse
 from app.schemas.principal import CurrentUser
 from app.services import auth_service
 from app.services.user_service import get_user
@@ -20,7 +21,12 @@ def _client_ip(request: Request) -> str | None:
     return request.client.host if request.client else None
 
 
-@router.post("/login", response_model=UserProfile, dependencies=[Depends(rate_limit_login)])
+@router.post(
+    "/login",
+    response_model=UserProfile,
+    dependencies=[Depends(rate_limit_login)],
+    responses={429: {"model": ErrorResponse, "description": "Too many attempts from this IP"}},
+)
 async def login(
     payload: LoginRequest,
     request: Request,
@@ -43,7 +49,12 @@ async def login(
     return UserProfile.model_validate(result.user)
 
 
-@router.post("/refresh", response_model=UserProfile, dependencies=[Depends(rate_limit_login)])
+@router.post(
+    "/refresh",
+    response_model=UserProfile,
+    dependencies=[Depends(rate_limit_login)],
+    responses={429: {"model": ErrorResponse, "description": "Too many attempts from this IP"}},
+)
 async def refresh(
     request: Request, response: Response, db: AsyncSession = Depends(get_db)
 ) -> UserProfile:

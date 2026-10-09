@@ -1,9 +1,9 @@
 # API Contract
 
-Status: **Implemented (all 7 backend phases).** This is the contract the frontend (Antigravity) agent should build against. Every endpoint below is live code, not a plan — see `docs/development-status.md` for the one caveat that matters for integration testing: **the backend has not yet been run against a real PostgreSQL database in this environment**, so while the code is complete, internally consistent, linted, and its database-free tests pass, no endpoint that touches the database has been exercised end-to-end yet. UI development against this contract (forms, tables, routing, state shapes) can proceed now; true end-to-end testing against a live backend needs a database on one side or the other.
+Status: **Implemented and audited (Prompt 4, 2026-10-09).** Every endpoint below is live code and has been exercised against the real Supabase database (121 backend tests pass with PostgreSQL row-level security enforced on application traffic). This is the contract the frontend builds against. The audit compared the live FastAPI routes, the Pydantic schemas, the generated OpenAPI document and this file: all 84 operations match by method and path, and every request-body field name matches its schema. Differences found were fixed in the direction "the backend is authoritative" (this file was corrected, not the API), except two additive backend changes: validation errors now carry per-field `details`, and the OpenAPI document now declares the real error shape (it previously described FastAPI's unused default).
 
 Three concrete artifacts back this document up:
-- **`docs/openapi.json`** — the actual generated OpenAPI 3 schema (exported from the running app, not hand-written), usable directly with `openapi-typescript`, `orval`, Swagger/Redoc UIs, or any other codegen tool to get exact request/response types without transcribing this document by hand. Regenerate it any time after a backend change with `python -c "import json; from app.main import app; json.dump(app.openapi(), open('../docs/openapi.json', 'w'), indent=2)"` from `backend/`.
+- **`docs/openapi.json`** — the actual generated OpenAPI 3 schema (exported from the running app, not hand-written), usable directly with `openapi-typescript`, `orval`, Swagger/Redoc UIs, or any other codegen tool to get exact request/response types without transcribing this document by hand. Regenerate it (and the generated operation reference at the end of this file) after any backend change with `python -m scripts.contract_tools` from `backend/`; `python -m scripts.contract_tools --check` exits non-zero if either is stale.
 - **`GET /docs`** (Swagger UI) and **`GET /redoc`** — live interactive docs when the server is running (`uvicorn app.main:app --reload` from `backend/`, per `backend/README.md`), disabled automatically when `ENVIRONMENT=production`.
 - This file (`api-contract.md`) — the one place that documents *permission* semantics (who can call what, and why), which OpenAPI has no way to express.
 
@@ -15,9 +15,10 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 - Auth: cookie-based (httpOnly `access_token`, path `/`; httpOnly `refresh_token`, path `/api/v1/auth` only). Every endpoint below except `/auth/login` requires a valid session unless noted.
 - CSRF: on login/refresh the server also sets a **non-httpOnly** `csrf_token` cookie. On every state-changing request (`POST`/`PATCH`/`DELETE`), the frontend must read that cookie and echo its value back as an `X-CSRF-Token` request header; a missing or mismatched header is rejected with `403`. `GET`/`HEAD`/`OPTIONS` requests don't need it. The frontend never needs to invent or store this value itself beyond reading the cookie the server already set.
 - The API is called with `credentials: "include"` (or the client's equivalent) so cookies are sent; requests must originate from an origin listed in the server's CORS allow-list.
-- All list endpoints support pagination (`?page=`, `?page_size=`) and return `{ items: [...], total, page, page_size }`.
+- **List shapes differ by endpoint** — see §21 for the exact table. In short: 11 collection endpoints are paginated (`?page=` ≥ 1, default 1; `?page_size=` 1–100, default 25) and return `{ items, total, page, page_size }`; a few return `{ items }` or `{ items, total }` without paging; the rest of the sub-resource lists return a bare JSON array.
+- Identifiers are UUID strings. Timestamps are ISO 8601 with timezone; dates are `YYYY-MM-DD`. Enum-valued fields are validated server-side: an invalid value in a request body is `422`, but an unknown value in a *query filter* (e.g. `?status=bogus`) is not an error and simply returns an empty list.
 - All timestamps are ISO 8601 UTC. Dates are `YYYY-MM-DD`.
-- Standard error shape: `{ "error": { "code": "string", "message": "string" } }`. `403` when the caller can see the record but is not allowed to perform the action (e.g. an employee editing a field only a manager may change). `404` when the record is outside the caller's visibility — PostgreSQL row-level security (enforced on every application query since migration `0013`) hides rows the caller may not see, so the API answers "not found" and never confirms that the record exists. The frontend should treat both as "not allowed / not available".
+- Standard error shape: `{ "error": { "code", "message", "details"? } }`. `code` is one of `authentication_failed` (401), `forbidden` (403), `not_found` (404), `conflict` (409), `validation_failed` (422), `rate_limit_exceeded` (429, login/refresh only), `internal_error` (500, message carries a request id), `http_error` (other HTTP errors). `details` is present only on request-validation failures (`validation_failed` from malformed input) and is a list of `{field, message, type}` — one per invalid field, `field` being the request field name — so forms can show per-field errors; input values are never echoed back. Business-rule violations are also `422 validation_failed` but have no `details` (message only). `403` when the caller can see the record but is not allowed to perform the action (e.g. an employee editing a field only a manager may change). `404` when the record is outside the caller's visibility — PostgreSQL row-level security (enforced on every application query since migration `0013`) hides rows the caller may not see, so the API answers "not found" and never confirms that the record exists. The frontend should treat both as "not allowed / not available".
 - "Permission" column states the *server-side* rule; the frontend must not infer access from UI state.
 
 ---
@@ -28,9 +29,11 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 |---|---|---|---|
 | `POST /auth/login` | Body `{employee_code, password}`. Sets access/refresh cookies. Returns user profile (no password fields). | None | Public |
 | `POST /auth/logout` | Revokes current session. | Session | Self |
-| `POST /auth/refresh` | Rotates refresh token, issues new access token. | Refresh cookie | Self |
+| `POST /auth/refresh` | Rotates refresh token, issues new access token. Rate-limited with login (`429` `rate_limit_exceeded`). Login is also rate-limited per IP and locks an account after 5 consecutive failures. | Refresh cookie | Self |
 | `GET /auth/me` | Returns current user's profile + role + manager_id. | Session | Self |
 | `POST /auth/change-password` | Body `{current_password, new_password}`. | Session | Self |
+| `GET /health` | Liveness check, `{status}`. | None | Public |
+| `GET /health/db` | Database connectivity; `503` with the standard error shape when the database is unreachable. | None | Public |
 | `POST /users/{id}/reset-password` | Admin-forced reset (no email/OTP recovery exists). Body `{temporary_password}`; sets `must_reset=true`, revokes all of that user's sessions. | Session | Owner (any user); Manager (only users in their subtree) |
 
 ---
@@ -51,9 +54,9 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
-| `GET /hierarchy` | Full org tree (or subtree for a Manager). | Session | Owner: full tree. Manager: own subtree. |
+| `GET /hierarchy` | **Flat list** of nodes `{id, employee_code, name, role, manager_id}` (build the tree client-side from `manager_id`), sorted by name. Optional `root_user_id` (Owner only; ignored for Managers) restricts it to that user's subtree, root included. | Session | Owner: full tree. Manager: own subtree. |
 | `PATCH /hierarchy/{user_id}/manager` | Reassign a user's direct manager. Body `{manager_id}`. Triggers closure table recompute + audit log. | Session | Owner only. |
-| `GET /permissions/definitions` | List available permission keys/descriptions. | Session | Owner (management UI), read-only for others if needed for UI hints. |
+| `GET /permissions/definitions` | List available permission keys/descriptions. | Session | **Owner only** (`403` for everyone else). There is no endpoint that returns the caller's own effective permissions — see §22. |
 | `GET /permissions/grants` | List active grants. Filters: `grantee_user_id`, `permission_key`, `scope_type`. | Session | Owner only. |
 | `POST /permissions/grants` | Create a grant/override. Body `{grantee_user_id, permission_key, scope_type, scope_id, effect, expires_at?}`. | Session | Owner only. |
 | `DELETE /permissions/grants/{id}` | Soft-revoke a grant (`revoked_at`). | Session | Owner only. |
@@ -64,7 +67,7 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
-| `GET /tasks` | Filters: `assigned_to`, `project_id`, `status`, `date`, `date_range`. | Session | Owner: all. Manager: own + subtree's. Employee: own only. |
+| `GET /tasks` | Filters: `assigned_to`, `project_id`, `status`, `task_date` (exact date; for ranges use `GET /calendar`). Sorted `task_date` desc (nulls last), then `created_at` desc. | Session | Owner: all. Manager: own + subtree's. Employee: own only. |
 | `GET /tasks/{id}` | Task detail incl. assigner/assignee, project, dates. | Session | Same scoping as list, evaluated per-record. |
 | `POST /tasks` | Create + assign a task. Body `{title, description, project_id?, assigned_to, priority, task_date, due_date?}`. | Session | Owner: any assignee. Manager: assignee must be self or in subtree, or an explicit `assign_tasks_to_manager` grant target. Employee: not permitted. |
 | `PATCH /tasks/{id}` | Update fields incl. `status`, reassignment (`assigned_to`). Writes `task_history` rows for changed fields. | Session | Owner: any. Manager: tasks they created/assigned or that are in their subtree. Employee: may update `status` only on tasks assigned to them (per §3.1 — no other modification). |
@@ -91,7 +94,7 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
 | `POST /leaves` | Employee/Manager applies for leave. Body `{start_date, end_date, reason}`. Sets `current_approver_id` to the applicant's direct manager. | Session | Self (any role below Owner; Owner's own leave is a policy question — see Open Questions). |
-| `GET /leaves` | Filters: `employee_id`, `status`, `date_range`. | Session | Owner: all. Manager: own + subtree's. Employee: own only. |
+| `GET /leaves` | Filters: `employee_id`, `status` (no date filter; for date ranges use `GET /calendar`, which includes leave). Sorted newest first. | Session | Owner: all. Manager: own + subtree's. Employee: own only. |
 | `GET /leaves/{id}` | Detail incl. approval history. | Session | Same scoping. |
 | `POST /leaves/{id}/approve` | Body `{comments?}`. Only valid if caller is `current_approver_id` or Owner, and the request is still `pending`. Implemented as single-level: one approval finalizes `status=approved` (the schema's `leave_approvals.sequence` supports a multi-step chain, not built — see Open Questions). | Session | `current_approver_id` or Owner. |
 | `POST /leaves/{id}/reject` | Body `{comments}` (required — reason for rejection). | Session | `current_approver_id` or Owner. |
@@ -104,7 +107,7 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
 | `POST /eod` | Submit EOD. Body `{report_date, project_id?, task_id?, work_completed, work_remaining, issues?, notes?}`. | Session | Self. |
-| `GET /eod` | Filters: `user_id`, `project_id`, `date_range`. | Session | Owner: all. Manager: own + subtree's (including subordinate Managers', per §5.4). Employee: own only. |
+| `GET /eod` | Filters: `user_id`, `project_id`, `report_date` (exact date). Sorted `report_date` desc. | Session | Owner: all. Manager: own + subtree's (including subordinate Managers', per §5.4). Employee: own only. |
 | `GET /eod/{id}` | Detail. Attachments are fetched separately via `GET /attachments?entity_type=eod_report&entity_id=` (§15), not embedded. | Session | Same scoping. |
 
 ---
@@ -248,7 +251,7 @@ Every report is scoped by hierarchy exactly like the underlying list endpoints (
 
 ## 19. Search
 
-Search is implemented as filter parameters on the relevant list endpoints (`GET /customers?search=`, `GET /machines?search=`, `GET /users?search=`, `GET /service-calls?...`) rather than a separate unified search endpoint, keeping permission scoping identical to the underlying resource's list rule. A cross-entity `GET /search?q=` convenience endpoint may be added later purely as a UI affordance that fans out to the same scoped queries — not a new authorization surface.
+Search is implemented as filter parameters on the relevant list endpoints, rather than a separate unified search endpoint, keeping permission scoping identical to the underlying resource's list rule. All text filters are case-insensitive **partial** matches: `GET /users?search=` (name, employee_code, designation), `GET /customers?name=|customer_code=|contact=|machine_serial=` (contact matches contact name, phone or email), `GET /machines?serial_number=|model_name=`, `GET /service-calls?service_call_code=`. There is no `?search=` on customers/machines and no `GET /search`; a cross-entity endpoint may be added later purely as a UI affordance that fans out to the same scoped queries — not a new authorization surface.
 
 ---
 
@@ -282,13 +285,67 @@ The full catalog of `permission_key` strings (e.g. `create_project`, `assign_emp
 
 ---
 
+## 21. List Behaviour: Shapes, Sorting, Pagination
+
+Paging is `?page=` (≥ 1, default 1) and `?page_size=` (1–100, default 25); out-of-range values are `422`. Paginated lists use `LIMIT/OFFSET`; `total` is the full match count. Every list is ordered deterministically (below); there is no client-selectable sort on any endpoint.
+
+| Shape | Endpoints (sort order) |
+|---|---|
+| **Paginated** `{items, total, page, page_size}` | `GET /users` (name) · `/tasks` (task_date desc, nulls last, then created_at desc) · `/projects` (created_at desc) · `/leaves` (created_at desc) · `/eod` (report_date desc) · `/attendance` (work_date desc) · `/customers` (name) · `/machines` (machine_code) · `/service-calls` (created_at desc) · `/audit-logs` (created_at desc) |
+| `{items}` only (not paginated) | `GET /calendar` (bounded by the required `start_date`..`end_date`) · `GET /attachments` (requires `entity_type`+`entity_id`; newest first) |
+| `{items, total}` (not paginated) | `GET /notifications` (newest first; `?unread_only=true`) |
+| **Bare JSON array** | `GET /hierarchy` · `/users/{id}/subordinates` · `/permissions/definitions` · `/permissions/grants` · `/tasks/{id}/history` · `/projects/{id}/members` · `/attendance/{user_id}/{work_date}/events` · `/customers/{id}/contacts` · `/service-calls/{id}/assignments` · `/visits` · `/reports` (sub-resource) · `/reports/attendance` · `/reports/workload` |
+| Aggregates | `GET /reports/tasks` → `{by_status, total}` · `/reports/leave` → `{by_status, total}` · `/reports/service-activity` → `{by_status, total_calls, average_resolution_minutes}` |
+
+Unbounded-by-design lists to be aware of: `/hierarchy` (Owner: every user), `/permissions/*`, `/reports/attendance` and `/reports/workload` (one row per in-scope user; use `start_date`/`end_date` on attendance). Fine at current scale; the frontend should not assume they stay small.
+
+---
+
+## 22. Frontend Integration Checklist
+
+### Endpoints the frontend MUST use
+- **Session:** `POST /auth/login` → `GET /auth/me` on every app start (the only source of the caller's `role`, `id`, `manager_id`) → `POST /auth/refresh` on `401` (once, then retry) → `POST /auth/logout`. `POST /auth/change-password` is required UX: accounts created by the API or the seed script start with a forced change (`must_reset`) — note `GET /auth/me`/login do **not** currently return `must_reset`, so the client cannot detect it; see "Known gaps".
+- **Employee surface:** `/tasks` (+`PATCH` status), `/projects`, `/leaves`, `/eod`, `/attendance` (+`punch-in`/`punch-out`), `/service-calls` + `/visits` + `/reports`, `/attachments`, `/notifications`.
+- **Manager adds:** `/users` (scoped), `/users/{id}/subordinates`, `POST /tasks`, project member endpoints, `POST /leaves/{id}/approve|reject`, `/calendar`, `/reports/*`, `/service-calls/{id}/assign`.
+- **Owner adds:** `POST /users`, `PATCH /users/{id}`, `PATCH /hierarchy/{id}/manager`, `/permissions/*`, `/audit-logs`.
+
+### Optional / future (do not build UI that depends on them)
+- `GET /health`, `GET /health/db` (ops only). `GET /search` is **not implemented** (§19: per-resource filters only). No export/download-as-file endpoints exist except attachment download. No push/email/WhatsApp delivery. No multi-step leave approval. No self-service password recovery (admin reset only).
+
+### Endpoints with special permission behaviour
+- **Owner only (`403` otherwise):** `POST /users`, `PATCH /hierarchy/{id}/manager`, `GET /permissions/definitions`, all `/permissions/grants` calls, `GET /audit-logs`.
+- **Manager or Owner (`403` for Employees):** all `GET /reports/*`.
+- **Grant-gated (a Manager needs an explicit Owner grant):** archiving a project (`delete_archive_project`, even for the owning manager), editing a project they don't own (`modify_project`), adding project members (`assign_employees_to_project`), assigning a task to another Manager (`assign_tasks_to_manager`), assigning employees to a service call they are not responsible for (`assign_employees_to_service_call`). `create_project` is allowed to Managers by default.
+- **Scope-dependent results:** most list/detail endpoints return different rows per role (Owner all, Manager self + subtree, Employee own/assigned). Never infer access from a row being absent — it may be out of scope.
+- **`404` vs `403`:** see Conventions. Treat both as "not available to you".
+- **Attachments:** `GET /attachments/{id}` returns a short-lived `download_url`; `GET /attachments/{id}/download` always streams through the API with the session cookie. Upload is `multipart/form-data` (`entity_type`, `entity_id`, `file`); the server rejects unknown extensions, files over 25 MB and content whose magic bytes don't match the extension (`422`).
+
+### Known gaps the frontend must plan around (backend decisions, not frontend bugs)
+1. **No "my permissions" endpoint.** `GET /auth/me` returns only `{id, employee_code, name, designation, role, manager_id, is_active}`. Permission-aware UI can key off `role` and handle `403`/`404`; it cannot discover which grants the caller holds.
+2. **Three catalogued permissions are not enforced anywhere:** `view_manager_team`, `view_manager_reports` and `view_subordinate_manager_calendar` exist in `/permissions/definitions` and can be granted (the evaluator unit-tests pass), but no endpoint or RLS policy consults them, so granting "Manager A may see Manager B's reports" currently changes nothing. Do not build Owner UI that promises these until the backend enforces them (tracked in `docs/development-status.md`).
+3. **`must_reset` is not exposed** (see above), so a forced password change cannot be triggered from the client.
+4. **Date-range filters** exist only on `/attendance`, `/calendar` and `/reports/attendance`; `/tasks` and `/eod` filter by one exact date, `/leaves` has none.
+5. **Error `details`** are only on malformed-input `422`s, not on business-rule `422`s.
+
+### Frontend implementation checklist
+- [ ] API client: `credentials: "include"`, JSON, echo `csrf_token` cookie as `X-CSRF-Token` on `POST/PATCH/DELETE`; on `401` try `/auth/refresh` once then redirect to login.
+- [ ] One error handler over `{error:{code,message,details?}}`; map `details[].field` to form fields; treat `403`/`404` identically in the UI; show the request id from `internal_error` messages.
+- [ ] Generic paginated-table component for the 10 paginated lists; separate simple-list handling for `{items}`, `{items,total}` and bare arrays (§21).
+- [ ] Types generated from `docs/openapi.json` (now includes the real error schema); re-run `python -m scripts.contract_tools` after backend changes.
+- [ ] Build the org tree from `/hierarchy`'s flat list; resolve names from the node list rather than extra user lookups (Employees cannot read other users).
+- [ ] Respect `429` on login/refresh (back off) and the 5-failure account lock.
+- [ ] Use dropdown values from §20 (the server rejects anything else with `422`).
+- [ ] Remove the hardcoded demo-login buttons from `LoginPage.tsx` before any real deployment.
+
+---
+
 ## Getting Started for Frontend Integration
 
 1. **Get exact types first.** Run the backend once (`uvicorn app.main:app --reload` from `backend/`, after `pip install -r requirements.txt` and a `.env` with at least a `JWT_SECRET_KEY` — a real `DATABASE_URL` is not required for the server to start or for `/docs`/`/openapi.json` to work, only for endpoints that actually query the database) and feed `docs/openapi.json` (or the live `/openapi.json`) into your codegen tool of choice for request/response TypeScript types. Don't hand-transcribe shapes from this document.
 2. **Auth flow:** `POST /auth/login` with `credentials: "include"` → cookies are set automatically → read the `csrf_token` cookie and send it back as `X-CSRF-Token` on every subsequent `POST`/`PATCH`/`DELETE`. No token ever needs to be stored in JS-accessible storage.
-3. **Every list response** follows the same envelope: `{ items, total, page, page_size }`. Build one generic paginated-table component against that shape rather than a bespoke one per resource.
-4. **Every error response** follows `{ error: { code, message } }` with a real HTTP status (401/403/404/409/422) — build one generic error-toast/handler around that shape.
-5. **What won't work yet:** any request that actually touches the database will fail in this environment until a real Postgres instance is connected (see `docs/development-status.md`) — expect connection errors, not `4xx`s, from those calls for now. UI/UX, forms, routing, and client-side validation can all be built and visually verified against mock/static data in the meantime; true integration testing resumes once the database is live.
+3. **Ten collection endpoints** share the envelope `{ items, total, page, page_size }` — build one generic paginated-table component for those. The other list endpoints differ (§21); do not assume one shape for every list.
+4. **Every error response** follows `{ error: { code, message, details? } }` with a real HTTP status (401/403/404/409/422/429/500) — build one generic error handler around that shape and use `details` for per-field form errors.
+5. **Run it locally:** start the API (`uvicorn app.main:app --reload` from `backend/`, with `DATABASE_URL`/`JWT_SECRET_KEY` in `backend/.env`), create the first Owner with `python -m scripts.seed_owner`, then log in. Note the test suite truncates the development database, so re-seed after running it.
 
 ---
 
@@ -300,3 +357,98 @@ All four were implemented with a specific default rather than left blocking (see
 2. Customer/machine visibility for Employees/Managers not explicitly assigned to a service call — is customer data company-wide-visible to all staff, or restricted to those with an active assignment/responsibility? **Implemented as a hybrid**: Owner/Manager see the full directory (needed to search and log new calls for anyone); Employees are assignment-scoped. Editing (not viewing) a customer/machine is narrower still — see §10.
 3. Can an Employee view a teammate's service report on a call they're jointly assigned to, or only their own submitted report? **Implemented as own report only.**
 4. Does the Owner submit/require their own EOD reports and attendance punches, or are those Employee/Manager-only concepts? **Implemented as optional** — nothing prevents the Owner from using `/eod`, `/leaves`, or `/attendance` for their own record.
+
+## Appendix A — Operation reference (generated)
+
+Generated from the running app by `python -m scripts.contract_tools`; do not edit by hand. It states, for every operation, the success status, the **route-level** role guard (`Session` means any logged-in user — finer scoping is the "Permission" column above, enforced in the service layer and by RLS), query parameters and request-body fields (`*` = required). Where this table and a hand-written `Body {...}` list disagree on which fields are required, this table wins.
+
+<!-- BEGIN GENERATED OPERATION REFERENCE (python -m scripts.contract_tools) -->
+
+| Method & path | OK | Auth (route-level) | Query params | Request body (* = required) | Response |
+|---|---|---|---|---|---|
+| `GET /health` | 200 | None | - | - | object |
+| `GET /health/db` | 200 | None | - | - | object |
+| `POST /auth/login` | 200 | None | - | employee_code*, password* | UserProfile |
+| `POST /auth/refresh` | 200 | Refresh cookie | - | - | UserProfile |
+| `POST /auth/logout` | 204 | Session | - | - | (empty) |
+| `GET /auth/me` | 200 | Session | - | - | UserProfile |
+| `POST /auth/change-password` | 204 | Session | - | current_password*, new_password* | (empty) |
+| `GET /users` | 200 | Session | manager_id, role, is_active, search, page, page_size | - | UserListResponse |
+| `POST /users` | 201 | Owner | - | employee_code*, name*, designation, role*, manager_id, initial_password* | UserResponse |
+| `GET /users/{user_id}` | 200 | Session | - | - | UserResponse |
+| `PATCH /users/{user_id}` | 200 | Session | - | name, designation, role, is_active | UserResponse |
+| `GET /users/{user_id}/subordinates` | 200 | Session | - | - | UserResponse[] |
+| `POST /users/{user_id}/reset-password` | 204 | Session | - | temporary_password* | (empty) |
+| `GET /hierarchy` | 200 | Session | root_user_id | - | HierarchyNode[] |
+| `PATCH /hierarchy/{user_id}/manager` | 200 | Owner | - | manager_id | HierarchyNode |
+| `GET /permissions/definitions` | 200 | Owner | - | - | PermissionDefinitionResponse[] |
+| `GET /permissions/grants` | 200 | Owner | grantee_user_id, permission_key, scope_type | - | PermissionGrantResponse[] |
+| `POST /permissions/grants` | 201 | Owner | - | grantee_user_id*, permission_key*, scope_type*, scope_id, effect*, expires_at | PermissionGrantResponse |
+| `DELETE /permissions/grants/{grant_id}` | 204 | Owner | - | - | (empty) |
+| `GET /tasks` | 200 | Session | assigned_to, project_id, status, task_date, page, page_size | - | TaskListResponse |
+| `POST /tasks` | 201 | Session | - | title*, description, project_id, assigned_to*, priority, task_date, due_date | TaskResponse |
+| `GET /tasks/{task_id}` | 200 | Session | - | - | TaskResponse |
+| `PATCH /tasks/{task_id}` | 200 | Session | - | title, description, project_id, assigned_to, priority, status, task_date, due_date | TaskResponse |
+| `GET /tasks/{task_id}/history` | 200 | Session | - | - | TaskHistoryEntry[] |
+| `GET /projects` | 200 | Session | status, manager_id, member_id, page, page_size | - | ProjectListResponse |
+| `POST /projects` | 201 | Session | - | name*, description, status, start_date, expected_end_date | ProjectResponse |
+| `GET /projects/{project_id}` | 200 | Session | - | - | ProjectResponse |
+| `PATCH /projects/{project_id}` | 200 | Session | - | name, description, status, start_date, expected_end_date, actual_end_date, is_active | ProjectResponse |
+| `GET /projects/{project_id}/members` | 200 | Session | - | - | ProjectMemberResponse[] |
+| `POST /projects/{project_id}/members` | 201 | Session | - | user_id*, role_in_project | ProjectMemberResponse |
+| `DELETE /projects/{project_id}/members/{user_id}` | 204 | Session | - | - | (empty) |
+| `POST /leaves` | 201 | Session | - | start_date*, end_date*, reason | LeaveResponse |
+| `GET /leaves` | 200 | Session | employee_id, status, page, page_size | - | LeaveListResponse |
+| `GET /leaves/{leave_id}` | 200 | Session | - | - | LeaveResponse |
+| `POST /leaves/{leave_id}/approve` | 200 | Session | - | comments | LeaveResponse |
+| `POST /leaves/{leave_id}/reject` | 200 | Session | - | comments* | LeaveResponse |
+| `POST /leaves/{leave_id}/cancel` | 200 | Session | - | - | LeaveResponse |
+| `POST /eod` | 201 | Session | - | report_date*, project_id, task_id, work_completed, work_remaining, issues, notes | EodResponse |
+| `GET /eod` | 200 | Session | user_id, project_id, report_date, page, page_size | - | EodListResponse |
+| `GET /eod/{eod_id}` | 200 | Session | - | - | EodResponse |
+| `POST /attendance/punch-in` | 200 | Session | - | latitude, longitude | AttendanceDayResponse |
+| `POST /attendance/punch-out` | 200 | Session | - | latitude, longitude | AttendanceDayResponse |
+| `GET /attendance` | 200 | Session | user_id, manager_id, start_date, end_date, page, page_size | - | AttendanceListResponse |
+| `GET /attendance/{user_id}/{work_date}/events` | 200 | Session | - | - | AttendanceEventResponse[] |
+| `GET /calendar` | 200 | Session | start_date*, end_date*, user_id, project_id, team | - | CalendarResponse |
+| `GET /customers` | 200 | Session | name, customer_code, contact, machine_serial, page, page_size | - | CustomerListResponse |
+| `POST /customers` | 201 | Session | - | customer_code*, name*, address, notes | CustomerResponse |
+| `GET /customers/{customer_id}` | 200 | Session | - | - | CustomerResponse |
+| `PATCH /customers/{customer_id}` | 200 | Session | - | name, address, notes, is_active | CustomerResponse |
+| `GET /customers/{customer_id}/contacts` | 200 | Session | - | - | CustomerContactResponse[] |
+| `POST /customers/{customer_id}/contacts` | 201 | Session | - | name*, designation, phone, email, is_primary | CustomerContactResponse |
+| `PATCH /customers/{customer_id}/contacts/{contact_id}` | 200 | Session | - | name, designation, phone, email, is_primary | CustomerContactResponse |
+| `GET /machines` | 200 | Session | customer_id, serial_number, model_name, page, page_size | - | MachineListResponse |
+| `POST /machines` | 201 | Session | - | customer_id*, machine_code*, model_name, serial_number, installation_date, purchase_info, warranty_info, location | MachineResponse |
+| `GET /machines/{machine_id}` | 200 | Session | - | - | MachineResponse |
+| `PATCH /machines/{machine_id}` | 200 | Session | - | model_name, serial_number, installation_date, purchase_info, warranty_info, location, status, is_active | MachineResponse |
+| `GET /service-calls` | 200 | Session | customer_id, machine_id, employee_id, manager_id, status, service_call_code, page, page_size | - | ServiceCallListResponse |
+| `POST /service-calls` | 201 | Session | - | service_call_code*, customer_id*, machine_id*, reported_by_contact_id, contacted_at*, contact_method*, issue_reported*, priority, service_type*, responsible_manager_id | ServiceCallResponse |
+| `GET /service-calls/{service_call_id}` | 200 | Session | - | - | ServiceCallResponse |
+| `PATCH /service-calls/{service_call_id}` | 200 | Session | - | issue_reported, priority, status, resolution, responsible_manager_id | ServiceCallResponse |
+| `GET /service-calls/{service_call_id}/assignments` | 200 | Session | active_only | - | ServiceAssignmentResponse[] |
+| `POST /service-calls/{service_call_id}/assign` | 201 | Session | - | employee_id*, role_in_call | ServiceAssignmentResponse |
+| `DELETE /service-calls/{service_call_id}/assign/{assignment_id}` | 204 | Session | - | - | (empty) |
+| `POST /service-calls/{service_call_id}/visits` | 201 | Session | - | visit_type*, visit_date, arrival_time, departure_time, latitude, longitude, work_performed, problem_found, parts_used, action_taken, result, customer_signoff | ServiceVisitResponse |
+| `GET /service-calls/{service_call_id}/visits` | 200 | Session | - | - | ServiceVisitResponse[] |
+| `PATCH /service-visits/{visit_id}` | 200 | Session | - | visit_date, arrival_time, departure_time, latitude, longitude, work_performed, problem_found, parts_used, action_taken, result, customer_signoff | ServiceVisitResponse |
+| `POST /service-calls/{service_call_id}/report` | 201 | Session | - | service_visit_id, report_datetime, work_performed, problem_found, root_cause, action_taken, parts_used, result, pending_work, recommendations, employee_comments | ServiceReportResponse |
+| `GET /service-calls/{service_call_id}/reports` | 200 | Session | - | - | ServiceReportResponse[] |
+| `GET /service-reports/{report_id}` | 200 | Session | - | - | ServiceReportResponse |
+| `POST /service-reports/{report_id}/review` | 200 | Session | - | comments | ServiceReportResponse |
+| `GET /attachments` | 200 | Session | entity_type*, entity_id* | - | AttachmentListResponse |
+| `POST /attachments` | 201 | Session | - | (multipart/form-data) entity_type*, entity_id*, file* | AttachmentWithUrlResponse |
+| `GET /attachments/{attachment_id}` | 200 | Session | - | - | AttachmentWithUrlResponse |
+| `DELETE /attachments/{attachment_id}` | 204 | Session | - | - | (empty) |
+| `GET /attachments/{attachment_id}/download` | 200 | Session | - | - | (file stream; Content-Type is the stored file's) |
+| `GET /audit-logs` | 200 | Owner | entity_type, entity_id, actor_user_id, action, start_date, end_date, page, page_size | - | AuditLogListResponse |
+| `GET /notifications` | 200 | Session | unread_only | - | NotificationListResponse |
+| `POST /notifications/{notification_id}/read` | 200 | Session | - | - | NotificationResponse |
+| `POST /notifications/read-all` | 204 | Session | - | - | (empty) |
+| `GET /reports/attendance` | 200 | Manager or Owner | start_date, end_date, manager_id | - | AttendanceReportRow[] |
+| `GET /reports/tasks` | 200 | Manager or Owner | project_id | - | TaskReportResponse |
+| `GET /reports/leave` | 200 | Manager or Owner | - | - | LeaveReportResponse |
+| `GET /reports/workload` | 200 | Manager or Owner | - | - | WorkloadRow[] |
+| `GET /reports/service-activity` | 200 | Manager or Owner | manager_id | - | ServiceActivityReportResponse |
+
+<!-- END GENERATED OPERATION REFERENCE -->

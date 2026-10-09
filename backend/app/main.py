@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.middleware import RequestContextMiddleware
+from app.schemas.errors import ErrorResponse
 
 
 def create_app() -> FastAPI:
@@ -25,6 +26,19 @@ def create_app() -> FastAPI:
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
         openapi_url="/openapi.json" if not settings.is_production else None,
+        # Every endpoint can fail with these; declaring them here (instead of
+        # FastAPI's default {"detail": [...]} 422) makes the OpenAPI document match
+        # the real wire format - see app/core/errors.py.
+        responses={
+            401: {"model": ErrorResponse, "description": "Not authenticated / session expired"},
+            403: {"model": ErrorResponse, "description": "Visible but not permitted, or bad CSRF"},
+            404: {
+                "model": ErrorResponse,
+                "description": "Not found, or outside the caller's visibility",
+            },
+            409: {"model": ErrorResponse, "description": "Conflict with current state"},
+            422: {"model": ErrorResponse, "description": "Invalid request (see error.details)"},
+        },
     )
 
     app.add_middleware(RequestContextMiddleware)

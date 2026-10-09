@@ -9,10 +9,28 @@ Last updated: 2026-09-28
 | 1 | Supabase integration-test fixes | **Complete** - 121/121 tests pass against live Supabase (migrations 0001-0015) |
 | 2 | Supabase security / RLS audit | **Complete** - RLS now enforced on application traffic (0013-0015); `anon`/`authenticated` locked out; 9 direct-DB RLS tests |
 | 3 | Backend performance review | **Complete** - indexes 0012, set-based policies 0015; findings, monitoring advice and remaining risk documented below |
-| 4 | Final API contract audit | **Next.** Baseline: `docs/openapi.json` is byte-identical to the live app (84 operations, 77 schemas) |
+| 4 | Final API contract audit | **Complete** - see "API contract audit (Prompt 4)" below |
 | 5-18 | Frontend, audits, UAT | Not started |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
+## API contract audit (Prompt 4) - 2026-10-09
+
+**Method**: the live FastAPI routes, Pydantic schemas, generated OpenAPI and `api-contract.md` were compared mechanically (route set, query parameters, body field names, role guards, status codes) and by probing the running app with invalid requests; hand-written claims were checked against code, not the other way round.
+
+**Result**: all 84 operations match by method and path; every documented request-body field name matches its schema. Differences found and resolved:
+- `GET /permissions/definitions` is Owner-only in code; the contract said others could read it - contract corrected.
+- Filters documented but not implemented (`tasks`: `date`/`date_range`; `leaves`/`eod`: `date_range`) and implemented but undocumented (`task_date`, `report_date`, `GET /hierarchy?root_user_id`) - contract corrected (backend unchanged).
+- `GET /hierarchy` returns a flat list, not a tree; `/customers`/`/machines` have no `?search=`; health endpoints were undocumented; the contract header still claimed the backend had never touched a database; "all lists are paginated" was wrong (10 paginated, 3 wrapped-unpaginated, 13 bare arrays) - all corrected, with a new shapes/sorting table (§21).
+- **Backend, additive**: malformed-input `422`s now include `error.details[{field,message,type}]` (input values never echoed); the OpenAPI document declared FastAPI's default `{detail:[...]}` 422 shape while the app returns `{error:{...}}`, so a generated client would have mistyped every error - it now declares the real `ErrorResponse` for 401/403/404/409/422 (and 429 on login/refresh).
+- Tooling: `python -m scripts.contract_tools` regenerates `docs/openapi.json` and a generated per-operation reference (Appendix A); `--check` and `tests/test_contract_docs.py` fail the suite if either drifts. New `tests/test_api_errors.py` pins the error contract.
+- Added the frontend integration checklist (§22): must-use / optional / special-permission endpoints and known gaps.
+
+**Known backend gaps found (documented in `api-contract.md` §22, not fixed - they are features, not contract drift)**
+1. `view_manager_team`, `view_manager_reports`, `view_subordinate_manager_calendar` are in the permission catalog and grantable, but **no endpoint or RLS policy enforces them** - granting "Manager A may see Manager B's reports" currently has no effect (the evaluator unit tests pass; nothing calls it for these keys). Must be implemented (service layer + RLS) before the Owner permissions UI (Prompt 9) or manager-visibility behaviour (Prompt 8) is built on it.
+2. No "my effective permissions" endpoint (`/auth/me` returns role only).
+3. `must_reset` is not returned by login/`/auth/me`, so the client cannot trigger the forced password change.
+4. Minor: text filters pass user input into `ILIKE` without escaping `%`/`_` (no injection risk; a literal `%` matches everything).
 
 ## RLS enforcement on application traffic (Prompt 2 completion) - 2026-10-06
 

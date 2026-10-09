@@ -4,6 +4,10 @@ Every error the API returns uses the shape:
 
     {"error": {"code": "string", "message": "string"}}
 
+Request-validation failures (HTTP 422, code "validation_failed") additionally carry
+`"details": [{"field", "message", "type"}, ...]` so forms can show per-field errors;
+input values are never echoed back.
+
 Handlers never leak internal details (stack traces, SQL text, file paths) to
 the client. Unexpected exceptions are logged server-side with the request id
 for correlation and returned to the client as a generic 500 with that same
@@ -65,11 +69,27 @@ class ConflictError(AppError):
     code = "conflict"
 
 
-def _error_response(status_code: int, code: str, message: str) -> JSONResponse:
-    return JSONResponse(
-        status_code=status_code,
-        content={"error": {"code": code, "message": message}},
-    )
+def _error_response(
+    status_code: int, code: str, message: str, details: list[dict[str, str]] | None = None
+) -> JSONResponse:
+    error: dict[str, object] = {"code": code, "message": message}
+    if details is not None:
+        error["details"] = details
+    return JSONResponse(status_code=status_code, content={"error": error})
+
+
+def _field_errors(exc: RequestValidationError) -> list[dict[str, str]]:
+    # Only location, message and type - never `input`, which can hold passwords.
+    return [
+        {
+            "field": ".".join(
+                str(part) for part in error["loc"] if part not in ("body", "query", "path")
+            ),
+            "message": str(error["msg"]),
+            "type": str(error["type"]),
+        }
+        for error in exc.errors()
+    ]
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -85,6 +105,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "validation_failed",
             "The request contained invalid data.",
+            details=_field_errors(exc),
         )
 
     @app.exception_handler(StarletteHTTPException)
