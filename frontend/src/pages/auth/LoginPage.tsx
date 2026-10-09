@@ -56,9 +56,9 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div
+      className="login-screen"
       style={{
         minHeight: '100vh',
-        minHeight: '100dvh',
         backgroundColor: 'var(--bg-app)',
         display: 'flex',
         flexDirection: 'column',

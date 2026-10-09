@@ -401,3 +401,10 @@ button {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* 100vh fallback is set inline; prefer the dynamic viewport height where supported (mobile browser chrome). */
+@supports (min-height: 100dvh) {
+  .login-screen {
+    min-height: 100dvh !important;
+  }
+}

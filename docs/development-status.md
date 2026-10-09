@@ -51,7 +51,7 @@ Prompts 1 and 2 of the 18-prompt plan (integration-test fixes; Supabase security
 - **Live RLS state**: all 26 business tables have RLS enabled **and forced**; 2–3 policies each; no policy is unconditionally open. `audit_logs`, `task_history`, `leave_approvals` have only INSERT/SELECT policies; `audit_logs` additionally has the `audit_logs_immutable` trigger (a `DELETE` raises "rows are immutable").
 - **anon/authenticated**: with rows present in the database, `SET ROLE anon` and `SET ROLE authenticated` (no app GUCs) read **0 rows** from every table and are refused an `INSERT` into `audit_logs` (`InsufficientPrivilegeError`).
 - **Storage**: bucket `attachments` exists and is private (25 MB limit).
-- **Not yet done**: the Owner user has not been seeded (login is impossible until it is); the 3 frontend TypeScript errors are unfixed; the directory name containing `:` still breaks `npm run` and a normal `.venv`.
+- **Not yet done**: the Owner user has not been seeded (login is impossible until it is); the 3 frontend TypeScript errors were fixed on 2026-10-09 (`Card.tsx` `title` prop typing, `main.tsx` import extension, duplicate `minHeight` in `LoginPage.tsx` replaced by a `100dvh` `@supports` rule) - `tsc -b` and `vite build` now pass, lint has 0 errors (57 pre-existing warnings); the directory name containing `:` still breaks `npm run` and a normal `.venv`.
 - **Test data**: the suite truncates the business tables before each test and leaves its last test's rows behind (a few users/sessions/tasks). The dev database should be treated as disposable test data until the Owner is seeded.
 
 ## Linux (Fedora) environment baseline — 2026-09-29
