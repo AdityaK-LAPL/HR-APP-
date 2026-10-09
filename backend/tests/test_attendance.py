@@ -5,8 +5,8 @@ NOT YET EXECUTED in this environment (no reachable Postgres) - see
 docs/development-status.md.
 """
 
-from datetime import date
 
+from app.core.company_time import company_today
 from tests.conftest import login, make_user, requires_db
 
 pytestmark = requires_db
@@ -23,7 +23,7 @@ async def test_punch_in_creates_attendance_day(client, db_session):
     )
     assert response.status_code == 200
     body = response.json()
-    assert body["work_date"] == date.today().isoformat()
+    assert body["work_date"] == company_today().isoformat()
     assert body["punch_in_time"] is not None
     assert body["punch_in_location"] == "12.9716,77.5946"
     assert body["status"] == "present"
@@ -143,7 +143,7 @@ async def test_employee_cannot_view_another_employees_attendance_events(client, 
     await client.post("/api/v1/attendance/punch-in", json={}, headers=a_headers)
 
     b_headers = await login(client, employee_code="EMP510", password="InitialPass123!")
-    today = date.today().isoformat()
+    today = company_today().isoformat()
     response = await client.get(
         f"/api/v1/attendance/{employee_a.id}/{today}/events", headers=b_headers
     )

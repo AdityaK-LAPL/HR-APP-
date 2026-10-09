@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     # empty string to disable (only sensible for a local database without it).
     app_db_role: str = Field(default="hr_app_rls")
 
+    # The company's single timezone (IANA name). Attendance days, "today" and any other
+    # business calendar date follow it; stored timestamps stay UTC. See app/core/company_time.py.
+    company_timezone: str = Field(default="Asia/Kolkata")
+
     supabase_url: str | None = Field(default=None)
     supabase_service_role_key: str | None = Field(default=None)
     supabase_storage_bucket: str = Field(default="attachments")
@@ -74,6 +78,17 @@ class Settings(BaseSettings):
     # question 6, still unresolved.
     login_rate_limit_max: int = Field(default=10)
     login_rate_limit_window_seconds: float = Field(default=60.0)
+
+    @field_validator("company_timezone")
+    @classmethod
+    def validate_company_timezone(cls, value: str) -> str:
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"COMPANY_TIMEZONE {value!r} is not a valid IANA timezone") from exc
+        return value
 
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod

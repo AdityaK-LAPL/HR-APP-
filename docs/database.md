@@ -275,7 +275,7 @@ Denormalized per-user-per-day summary, recomputed whenever a punch event for tha
 
 Unique `(user_id, work_date)`. Index `(work_date)` for company-wide reports.
 
-**Implementation note (Phase 4):** each day is modeled as exactly one punch-in/punch-out pair — a second punch-in the same day (after already completing a cycle) is rejected with `409`, not merged or overwritten. The raw `attendance_events` log has no such restriction, so a future "breaks / multiple sessions per day" feature can be layered on without a schema change. `work_date` is computed as the UTC calendar date of the punch event (no company timezone has been confirmed — see `architecture.md` §11 open question 7). RLS policies (migration `0006`) reuse the `current_app_in_scope()` helper from migration `0004` rather than duplicating the hierarchy check.
+**Implementation note (Phase 4):** each day is modeled as exactly one punch-in/punch-out pair — a second punch-in the same day (after already completing a cycle) is rejected with `409`, not merged or overwritten. The raw `attendance_events` log has no such restriction, so a future "breaks / multiple sessions per day" feature can be layered on without a schema change. `work_date` is the calendar date of the punch event in the company timezone (`Asia/Kolkata`, IST; see `architecture.md` §11 item 7) — a day rolls over at 00:00 IST. The `punch_*_time` / `event_time` columns remain UTC instants. RLS policies (migration `0006`) reuse the `current_app_in_scope()` helper from migration `0004` rather than duplicating the hierarchy check.
 
 ---
 

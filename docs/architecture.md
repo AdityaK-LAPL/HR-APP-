@@ -120,6 +120,6 @@ Rules:
 4. **Designation vs. Role**: assumed `designation` is a free-text job title (e.g. "Senior Technician") independent of the fixed `role` enum (Employee/Manager/Owner). Please confirm.
 5. **Single vs. multiple reporting lines**: assumed each user has exactly one direct manager (a tree). Matrix/dotted-line reporting (one employee under two managers) is not in `context.md` and is treated as a future requirement, not built now.
 6. **Redis (or equivalent) availability** in the deployment environment for rate limiting and session/token bookkeeping — needs an infra decision before Phase 1 implementation.
-7. **Company timezone**: attendance/EOD timestamps will be stored in UTC; confirm the single company timezone used for "date" boundaries (e.g. when does a work day roll over) if the company operates across time zones.
+7. **Company timezone — RESOLVED 2026-10-09: `Asia/Kolkata` (IST, UTC+05:30)**, configurable via `COMPANY_TIMEZONE`. Timestamps are stored and transmitted as UTC instants; business calendar dates (an attendance `work_date`, "today") are dates in the company timezone, so a day rolls over at 00:00 IST. See `app/core/company_time.py`.
 
 These same questions are cross-referenced from `development-status.md` and should be resolved before or during Phase 1 implementation, not silently assumed.

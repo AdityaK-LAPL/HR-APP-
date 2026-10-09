@@ -17,7 +17,7 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 - The API is called with `credentials: "include"` (or the client's equivalent) so cookies are sent; requests must originate from an origin listed in the server's CORS allow-list.
 - **List shapes differ by endpoint** — see §21 for the exact table. In short: 11 collection endpoints are paginated (`?page=` ≥ 1, default 1; `?page_size=` 1–100, default 25) and return `{ items, total, page, page_size }`; a few return `{ items }` or `{ items, total }` without paging; the rest of the sub-resource lists return a bare JSON array.
 - Identifiers are UUID strings. Timestamps are ISO 8601 with timezone; dates are `YYYY-MM-DD`. Enum-valued fields are validated server-side: an invalid value in a request body is `422`, but an unknown value in a *query filter* (e.g. `?status=bogus`) is not an error and simply returns an empty list.
-- All timestamps are ISO 8601 UTC. Dates are `YYYY-MM-DD`.
+- All timestamps are ISO 8601 UTC instants. **Business calendar dates** (`work_date`, "today") are dates in the **company timezone, Asia/Kolkata (IST, UTC+05:30)** — not UTC and not the browser's timezone. Dates are `YYYY-MM-DD`. Read the timezone and the server's "today" from `GET /config`; never compute "today" from `Date()` in the browser.
 - Standard error shape: `{ "error": { "code", "message", "details"? } }`. `code` is one of `authentication_failed` (401), `forbidden` (403), `not_found` (404), `conflict` (409), `validation_failed` (422), `password_change_required` (403, see §1), `rate_limit_exceeded` (429, login/refresh only), `internal_error` (500, message carries a request id), `http_error` (other HTTP errors). `details` is present only on request-validation failures (`validation_failed` from malformed input) and is a list of `{field, message, type}` — one per invalid field, `field` being the request field name — so forms can show per-field errors; input values are never echoed back. Business-rule violations are also `422 validation_failed` but have no `details` (message only). `403` when the caller can see the record but is not allowed to perform the action (e.g. an employee editing a field only a manager may change). `404` when the record is outside the caller's visibility — PostgreSQL row-level security (enforced on every application query since migration `0013`) hides rows the caller may not see, so the API answers "not found" and never confirms that the record exists. The frontend should treat both as "not allowed / not available".
 - "Permission" column states the *server-side* rule; the frontend must not infer access from UI state.
 
@@ -32,6 +32,7 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 | `POST /auth/refresh` | Rotates refresh token, issues new access token. Rate-limited with login (`429` `rate_limit_exceeded`). Login is also rate-limited per IP and locks an account after 5 consecutive failures. | Refresh cookie | Self |
 | `GET /auth/me` | Returns current user's profile (same shape as login, including `must_reset`). Usable while `must_reset` is true. | Session | Self |
 | `POST /auth/change-password` | Body `{current_password, new_password}`. | Session | Self |
+| `GET /config` | `{company_timezone: "Asia/Kolkata", utc_offset_minutes: 330, today: "YYYY-MM-DD"}` — company timezone and the server's "today" in it. Fetch once at app start. | None | Public |
 | `GET /health` | Liveness check, `{status}`. | None | Public |
 | `GET /health/db` | Database connectivity; `503` with the standard error shape when the database is unreachable. | None | Public |
 | `POST /users/{id}/reset-password` | Admin-forced reset (no email/OTP recovery exists). Body `{temporary_password}`; sets `must_reset=true`, revokes all of that user's sessions. | Session | Owner (any user); Manager (only users in their subtree) |
@@ -128,7 +129,7 @@ An explicit `deny` scoped to U removes U **and U's branch** for that kind even f
 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
-| `POST /attendance/punch-in` | Body `{latitude?, longitude?}` (both optional; requested only at this moment, not polled). Creates an `attendance_events` row and upserts today's `attendance_days` row. `409` if already punched in today, or if today's in/out cycle is already complete (each day is one punch-in/punch-out pair — see Attendance note below). `work_date` is the UTC calendar date of the event. | Session | Self only — `user_id` is always the authenticated caller, never a request field. |
+| `POST /attendance/punch-in` | Body `{latitude?, longitude?}` (both optional; requested only at this moment, not polled). Creates an `attendance_events` row and upserts today's `attendance_days` row. `409` if already punched in today, or if today's in/out cycle is already complete (each day is one punch-in/punch-out pair — see Attendance note below). `work_date` is the calendar date of the event in the **company timezone** (Asia/Kolkata / IST; the day rolls over at 00:00 IST, not 00:00 UTC). Timestamps in responses stay UTC instants — display them in the company timezone (`GET /config`). | Session | Self only — `user_id` is always the authenticated caller, never a request field. |
 | `POST /attendance/punch-out` | Body `{latitude?, longitude?}`. `409` if not currently punched in, or already punched out today. Computes `total_duration_minutes` from today's punch-in time. | Session | Self only. |
 | `GET /attendance` | Filters: `user_id`, `manager_id` (direct reports of that manager only, not their whole subtree), `start_date`, `end_date`. Returns paginated `attendance_days` rows. No `project_id` filter (attendance isn't linked to projects in this schema). | Session | Owner: all. Manager: own + subtree's. Employee: own only. |
 | `GET /attendance/{user_id}/{work_date}/events` | Raw punch events for one user-day (audit/detail view). `work_date` is `YYYY-MM-DD`. | Session | Owner: any. Self: own. Manager: subtree only. |
@@ -381,6 +382,7 @@ Generated from the running app by `python -m scripts.contract_tools`; do not edi
 |---|---|---|---|---|---|
 | `GET /health` | 200 | None | - | - | object |
 | `GET /health/db` | 200 | None | - | - | object |
+| `GET /config` | 200 | None | - | - | AppConfigResponse |
 | `POST /auth/login` | 200 | None | - | employee_code*, password* | UserProfile |
 | `POST /auth/refresh` | 200 | Refresh cookie | - | - | UserProfile |
 | `POST /auth/logout` | 204 | Session | - | - | (empty) |

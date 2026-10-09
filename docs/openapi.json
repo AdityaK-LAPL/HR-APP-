@@ -151,6 +151,78 @@
         }
       }
     },
+    "/api/v1/config": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "App Config",
+        "description": "Company timezone and the server's idea of \"today\". Not sensitive; no login required.",
+        "operationId": "app_config_api_v1_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppConfigResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -8165,6 +8237,33 @@
   },
   "components": {
     "schemas": {
+      "AppConfigResponse": {
+        "properties": {
+          "company_timezone": {
+            "type": "string",
+            "title": "Company Timezone",
+            "description": "IANA name, e.g. Asia/Kolkata"
+          },
+          "utc_offset_minutes": {
+            "type": "integer",
+            "title": "Utc Offset Minutes",
+            "description": "Current offset from UTC, e.g. 330 for IST"
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "title": "Today",
+            "description": "Today's date in the company timezone (server clock)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "company_timezone",
+          "utc_offset_minutes",
+          "today"
+        ],
+        "title": "AppConfigResponse"
+      },
       "AttachmentListResponse": {
         "properties": {
           "items": {

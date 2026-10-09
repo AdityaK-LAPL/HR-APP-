@@ -1,9 +1,9 @@
 """Attendance business logic. See docs/api-contract.md section 8.
 
 Location is captured only at the instant of a punch event, never polled
-continuously, per context.md section 4. `work_date` is the UTC calendar
-date of the event - the company timezone has not been confirmed yet, see
-docs/architecture.md section 11, open question 7.
+continuously, per context.md section 4. `work_date` is the calendar date of
+the event in the company timezone (Asia/Kolkata by default - see
+app/core/company_time.py); the timestamps themselves are UTC instants.
 
 Each day is modeled as a single punch-in/punch-out pair (`attendance_days`
 is a derived summary, unique per user per day) - a user who has already
@@ -13,11 +13,12 @@ sessions per day" feature can build on it without a schema change.
 """
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.company_time import company_date_of, company_day_bounds, utc_now
 from app.core.errors import AuthorizationError, ConflictError
 from app.models.attendance import AttendanceDay, AttendanceEvent
 from app.models.identity import User
@@ -42,8 +43,8 @@ async def _get_today(
 
 
 async def punch_in(db: AsyncSession, *, actor: CurrentUser, payload: PunchRequest) -> AttendanceDay:
-    now = datetime.now(UTC)
-    work_date = now.date()
+    now = utc_now()
+    work_date = company_date_of(now)
     day = await _get_today(db, user_id=actor.id, work_date=work_date)
 
     if day is not None and day.punch_in_time is not None:
@@ -77,8 +78,8 @@ async def punch_in(db: AsyncSession, *, actor: CurrentUser, payload: PunchReques
 async def punch_out(
     db: AsyncSession, *, actor: CurrentUser, payload: PunchRequest
 ) -> AttendanceDay:
-    now = datetime.now(UTC)
-    work_date = now.date()
+    now = utc_now()
+    work_date = company_date_of(now)
     day = await _get_today(db, user_id=actor.id, work_date=work_date)
 
     if day is None or day.punch_in_time is None:
@@ -146,11 +147,13 @@ async def get_events_for_day(
     if not await can_view_user(db, actor, user_id, "reports"):
         raise AuthorizationError("You do not have permission to view this user's attendance.")
 
+    day_start, day_end = company_day_bounds(work_date)
     stmt = (
         select(AttendanceEvent)
         .where(
             AttendanceEvent.user_id == user_id,
-            func.date(AttendanceEvent.event_time) == work_date,
+            AttendanceEvent.event_time >= day_start,
+            AttendanceEvent.event_time < day_end,
         )
         .order_by(AttendanceEvent.event_time)
     )

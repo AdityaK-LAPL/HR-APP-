@@ -1,8 +1,8 @@
 """Attendance events and the derived daily summary. See docs/database.md
 section 9.
 
-`work_date` is computed from the event time in UTC (no company timezone has
-been confirmed yet - see docs/architecture.md section 11, open question 7).
+`work_date` is the event's calendar date in the company timezone (Asia/Kolkata by
+default, app/core/company_time.py); timestamps are UTC instants.
 Location is captured only at the moment of a punch event, never polled
 continuously, per context.md section 4.
 """
