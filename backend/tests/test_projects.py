@@ -54,7 +54,8 @@ async def test_non_owning_manager_cannot_modify_project_without_grant(client, db
     response = await client.patch(
         f"/api/v1/projects/{project_id}", json={"name": "Hijacked"}, headers=b_headers
     )
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404
 
 
 async def test_owner_grant_unlocks_modify_project_for_non_owning_manager(client, db_session):

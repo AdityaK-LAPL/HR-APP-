@@ -13,13 +13,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthorizationError, NotFoundError, ValidationFailedError
-from app.models.identity import ManagerHierarchyClosure, User
+from app.models.identity import ManagerHierarchyClosure
 from app.models.project import Project
 from app.models.task import Task, TaskHistory
 from app.schemas.principal import CurrentUser
 from app.schemas.task import TaskCreateRequest, TaskUpdateRequest
 from app.services.audit_service import record_audit_log
 from app.services.permission_service import has_permission, in_scope
+from app.services.user_lookup import UserStub, get_user_stub
 
 TRACKED_FIELDS = (
     "title",
@@ -33,14 +34,14 @@ TRACKED_FIELDS = (
 )
 
 
-async def _get_active_user(db: AsyncSession, user_id: uuid.UUID) -> User:
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+async def _get_active_user(db: AsyncSession, user_id: uuid.UUID) -> UserStub:
+    user = await get_user_stub(db, user_id)
     if user is None or not user.is_active:
         raise ValidationFailedError("assigned_to does not reference an active user.")
     return user
 
 
-async def _can_assign(db: AsyncSession, actor: CurrentUser, target_user: User) -> bool:
+async def _can_assign(db: AsyncSession, actor: CurrentUser, target_user: UserStub) -> bool:
     if actor.role == "owner":
         return True
     if target_user.id == actor.id:

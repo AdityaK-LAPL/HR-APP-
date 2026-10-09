@@ -58,6 +58,12 @@ async def set_rls_context(session: AsyncSession, user_id: str | None, role: str 
     third argument.
     """
 
+    if _settings.app_db_role:
+        # Drop BYPASSRLS for this transaction: the connecting role skips RLS, the
+        # application role does not. Transaction-local, like the GUCs below.
+        await session.execute(
+            text("SELECT set_config('role', :role, true)"), {"role": _settings.app_db_role}
+        )
     await session.execute(
         text("SELECT set_config('app.user_id', :user_id, true)"), {"user_id": user_id or ""}
     )

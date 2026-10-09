@@ -45,7 +45,8 @@ async def test_employee_cannot_view_unassigned_customer(client, db_session):
 
     employee_headers = await login(client, employee_code="EMP600", password="InitialPass123!")
     response = await client.get(f"/api/v1/customers/{customer_id}", headers=employee_headers)
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404
 
 
 async def test_employee_can_view_customer_once_assigned_to_a_service_call(client, db_session):

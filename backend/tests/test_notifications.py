@@ -54,7 +54,8 @@ async def test_mark_read_requires_being_the_recipient(client, db_session):
     response = await client.post(
         f"/api/v1/notifications/{notification.id}/read", headers=b_headers
     )
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404
 
     a_headers = await login(client, employee_code="EMP1002", password="InitialPass123!")
     response = await client.post(

@@ -195,4 +195,5 @@ async def test_manager_cannot_reset_password_outside_subtree(client, db_session)
         json={"temporary_password": "TempPass123!"},
         headers=_csrf_headers(client),
     )
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404

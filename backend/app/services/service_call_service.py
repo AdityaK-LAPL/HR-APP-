@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthorizationError, ConflictError, NotFoundError, ValidationFailedError
 from app.models.customer import Customer
-from app.models.identity import ManagerHierarchyClosure, User
+from app.models.identity import ManagerHierarchyClosure
 from app.models.machine import Machine
 from app.models.service import ServiceAssignment, ServiceCall
 from app.schemas.principal import CurrentUser
@@ -26,6 +26,7 @@ from app.schemas.service import (
 )
 from app.services.audit_service import record_audit_log
 from app.services.permission_service import has_permission, in_scope
+from app.services.user_lookup import get_user_stub
 
 
 async def fetch_call(db: AsyncSession, service_call_id: uuid.UUID) -> ServiceCall:
@@ -123,9 +124,7 @@ async def create_service_call(
 
     if payload.responsible_manager_id is not None:
         responsible_manager_id = payload.responsible_manager_id
-        manager = (
-            await db.execute(select(User).where(User.id == responsible_manager_id))
-        ).scalar_one_or_none()
+        manager = await get_user_stub(db, responsible_manager_id)
         if manager is None or manager.role not in ("owner", "manager"):
             raise ValidationFailedError(
                 "responsible_manager_id must reference an Owner or Manager."
@@ -269,9 +268,7 @@ async def update_service_call(
             raise AuthorizationError(
                 "Only the Owner can reassign overall responsibility for a service call."
             )
-        manager = (
-            await db.execute(select(User).where(User.id == payload.responsible_manager_id))
-        ).scalar_one_or_none()
+        manager = await get_user_stub(db, payload.responsible_manager_id)
         if manager is None or manager.role not in ("owner", "manager"):
             raise ValidationFailedError(
                 "responsible_manager_id must reference an Owner or Manager."
@@ -335,9 +332,7 @@ async def assign_employee(
             "You do not have permission to assign employees to this service call."
         )
 
-    employee = (
-        await db.execute(select(User).where(User.id == payload.employee_id))
-    ).scalar_one_or_none()
+    employee = await get_user_stub(db, payload.employee_id)
     if employee is None or not employee.is_active:
         raise ValidationFailedError("employee_id does not reference an active user.")
 

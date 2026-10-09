@@ -184,4 +184,5 @@ async def test_employee_cannot_view_task_assigned_to_another_employee(client, db
 
     employee_a_headers = await login(client, employee_code="EMP205", password="InitialPass123!")
     response = await client.get(f"/api/v1/tasks/{task_id}", headers=employee_a_headers)
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404

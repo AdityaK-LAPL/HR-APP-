@@ -478,6 +478,7 @@ No table in this schema issues a hard `DELETE` from the application layer except
   - Measured and **not** added (the planner never chose them): `tasks(assigned_by)`, partial `service_assignments(service_call_id) WHERE is_active`.
   - Already adequate: employee-scoped task/service-call lists (<=10 ms), closure-table lookups (index-only scans on the PK), customer name search (uses `ix_customers_name`), calendar and attendance-report queries.
   - Known limits left as-is: `ILIKE '%...%'` on `service_calls.service_call_code` and the second-level `customers`/`machines` search are seq scans (61 ms at 60k rows); `pg_trgm` GIN indexes are the fix if these grow. `COUNT(*)` for pagination totals and the manager task/status reports still scan the `tasks` table (~80-130 ms at 300k rows).
+- **Roles and RLS (migrations `0013`-`0015`)**: the application runs as `hr_app_rls` (NOLOGIN, NOBYPASSRLS; granted to the connecting role), switched per transaction; `anon`/`authenticated` have no grants. Append-only tables grant only SELECT/INSERT. Hierarchy-scope policies use a direct `col IN (SELECT descendant_id FROM manager_hierarchy_closure WHERE ancestor_id = me)` form - keep that form for new policies (hiding the sub-select inside a function defeats the planner's hashed lookup).
 - Composite indexes called out per-table above are the minimum set; additional indexes will be added as query patterns are profiled during implementation.
 
 ## 14. Migration Tooling

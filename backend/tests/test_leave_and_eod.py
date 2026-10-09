@@ -85,7 +85,8 @@ async def test_unrelated_manager_cannot_approve_leave(client, db_session):
     response = await client.post(
         f"/api/v1/leaves/{leave_id}/approve", json={}, headers=b_headers
     )
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404
 
 
 async def test_reject_requires_comments(client, db_session):
@@ -221,4 +222,5 @@ async def test_employee_cannot_view_another_employees_eod(client, db_session):
 
     b_headers = await login(client, employee_code="EMP407", password="InitialPass123!")
     response = await client.get(f"/api/v1/eod/{eod_id}", headers=b_headers)
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404

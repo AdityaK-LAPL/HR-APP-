@@ -12,12 +12,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthorizationError, ConflictError, NotFoundError, ValidationFailedError
-from app.models.identity import ManagerHierarchyClosure, User
+from app.models.identity import ManagerHierarchyClosure
 from app.models.project import Project, ProjectMember
 from app.schemas.principal import CurrentUser
 from app.schemas.project import ProjectCreateRequest, ProjectMemberAddRequest, ProjectUpdateRequest
 from app.services.audit_service import record_audit_log
 from app.services.permission_service import has_permission, in_scope
+from app.services.user_lookup import get_user_stub
 
 
 async def _get_project(db: AsyncSession, project_id: uuid.UUID) -> Project:
@@ -223,7 +224,7 @@ async def add_member(
     if not await _can_manage_members(db, actor, project):
         raise AuthorizationError("You do not have permission to change this project's members.")
 
-    user = (await db.execute(select(User).where(User.id == payload.user_id))).scalar_one_or_none()
+    user = await get_user_stub(db, payload.user_id)
     if user is None or not user.is_active:
         raise ValidationFailedError("user_id does not reference an active user.")
 

@@ -176,14 +176,16 @@ async def test_employee_cannot_access_another_employees_data(db_session):
     await set_rls_context(db_session, user_id=str(employee_a.id), role="employee")
     assert await in_scope(db_session, _as_current(employee_a), employee_b.id) is False
 
-    from app.core.errors import AuthorizationError
+    from app.core.errors import NotFoundError
 
+    # RLS hides another employee's row entirely, so the lookup reports "not found"
+    # rather than "forbidden" (existence is not revealed).
     try:
         await user_service.get_user(
             db_session, actor=_as_current(employee_a), user_id=employee_b.id
         )
         raised = False
-    except AuthorizationError:
+    except NotFoundError:
         raised = True
     assert raised
 

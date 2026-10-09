@@ -64,7 +64,8 @@ async def test_unrelated_employee_cannot_attach_file_to_task(client, db_session)
     files = {"file": ("photo.png", io.BytesIO(PNG_MAGIC), "image/png")}
     data = {"entity_type": "task", "entity_id": task_id}
     response = await client.post("/api/v1/attachments", data=data, files=files, headers=b_headers)
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404
 
 
 async def test_disallowed_extension_rejected(client, db_session):

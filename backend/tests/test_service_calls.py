@@ -111,7 +111,8 @@ async def test_unrelated_manager_cannot_view_service_call(client, db_session):
 
     b_headers = await login(client, employee_code="MGR702", password="InitialPass123!")
     response = await client.get(f"/api/v1/service-calls/{call_id}", headers=b_headers)
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404
 
 
 async def test_assign_and_unassign_employee_preserves_history(client, db_session):
@@ -152,7 +153,8 @@ async def test_assign_and_unassign_employee_preserves_history(client, db_session
     # the employee is no longer actively assigned...
     employee_headers = await login(client, employee_code="EMP701", password="InitialPass123!")
     view_resp = await client.get(f"/api/v1/service-calls/{call_id}", headers=employee_headers)
-    assert view_resp.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert view_resp.status_code == 404
 
     # ...but the assignment row (and who assigned/unassigned them) is preserved, not deleted.
     # (Logging in as the employee replaced this client's cookies - log back in.)
@@ -307,7 +309,8 @@ async def test_unassigned_employee_cannot_submit_report(client, db_session):
         json={"work_performed": "Nothing, I wasn't assigned"},
         headers=bystander_headers,
     )
-    assert response.status_code == 403
+    # RLS hides rows outside the caller's scope, so the API answers 404 (existence is not revealed).
+    assert response.status_code == 404
 
 
 async def test_employee_sees_only_own_report_manager_sees_all(client, db_session):

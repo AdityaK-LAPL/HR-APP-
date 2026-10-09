@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=5)
     db_max_overflow: int = Field(default=2)
 
+    # The database role each request's transaction switches to (SET LOCAL ROLE
+    # semantics, via set_config('role', ..., true)). It must be NOBYPASSRLS so
+    # PostgreSQL RLS applies to application queries - the connecting role
+    # (Supabase's `postgres`) has BYPASSRLS. Created by migration 0013. Set to an
+    # empty string to disable (only sensible for a local database without it).
+    app_db_role: str = Field(default="hr_app_rls")
+
     supabase_url: str | None = Field(default=None)
     supabase_service_role_key: str | None = Field(default=None)
     supabase_storage_bucket: str = Field(default="attachments")

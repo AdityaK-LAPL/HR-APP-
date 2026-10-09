@@ -17,7 +17,7 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 - The API is called with `credentials: "include"` (or the client's equivalent) so cookies are sent; requests must originate from an origin listed in the server's CORS allow-list.
 - All list endpoints support pagination (`?page=`, `?page_size=`) and return `{ items: [...], total, page, page_size }`.
 - All timestamps are ISO 8601 UTC. Dates are `YYYY-MM-DD`.
-- Standard error shape: `{ "error": { "code": "string", "message": "string" } }`. `403` for authorization failures (never a `404` used to hide existence, unless deliberately obscuring existence is a business requirement — not assumed here).
+- Standard error shape: `{ "error": { "code": "string", "message": "string" } }`. `403` when the caller can see the record but is not allowed to perform the action (e.g. an employee editing a field only a manager may change). `404` when the record is outside the caller's visibility — PostgreSQL row-level security (enforced on every application query since migration `0013`) hides rows the caller may not see, so the API answers "not found" and never confirms that the record exists. The frontend should treat both as "not allowed / not available".
 - "Permission" column states the *server-side* rule; the frontend must not infer access from UI state.
 
 ---
