@@ -772,6 +772,99 @@
         }
       }
     },
+    "/api/v1/users/directory": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "User Directory",
+        "description": "Display names for user ids found in records the caller can see (repeat `?ids=`).\n\nOpen to every logged-in user and returns only id, name, employee_code, designation, role\nand is_active - never profiles, hierarchy or anything else. Unknown ids are omitted.",
+        "operationId": "user_directory_api_v1_users_directory_get",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "maxItems": 100,
+              "title": "Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserDirectoryEntry"
+                  },
+                  "title": "Response User Directory Api V1 Users Directory Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{user_id}": {
       "get": {
         "tags": [
@@ -8097,7 +8190,16 @@
           },
           "entity_type": {
             "type": "string",
-            "title": "Entity Type"
+            "title": "Entity Type",
+            "enum": [
+              "task",
+              "eod_report",
+              "project",
+              "customer",
+              "machine",
+              "service_call",
+              "service_report"
+            ]
           },
           "entity_id": {
             "type": "string",
@@ -8163,7 +8265,16 @@
           },
           "entity_type": {
             "type": "string",
-            "title": "Entity Type"
+            "title": "Entity Type",
+            "enum": [
+              "task",
+              "eod_report",
+              "project",
+              "customer",
+              "machine",
+              "service_call",
+              "service_report"
+            ]
           },
           "entity_id": {
             "type": "string",
@@ -8301,7 +8412,13 @@
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "enum": [
+              "present",
+              "partial",
+              "absent",
+              "on_leave"
+            ]
           }
         },
         "type": "object",
@@ -8332,7 +8449,11 @@
           },
           "event_type": {
             "type": "string",
-            "title": "Event Type"
+            "title": "Event Type",
+            "enum": [
+              "punch_in",
+              "punch_out"
+            ]
           },
           "event_time": {
             "type": "string",
@@ -8557,7 +8678,16 @@
         "properties": {
           "entity_type": {
             "type": "string",
-            "title": "Entity Type"
+            "title": "Entity Type",
+            "enum": [
+              "task",
+              "eod_report",
+              "project",
+              "customer",
+              "machine",
+              "service_call",
+              "service_report"
+            ]
           },
           "entity_id": {
             "type": "string",
@@ -8587,7 +8717,11 @@
           },
           "entry_type": {
             "type": "string",
-            "title": "Entry Type"
+            "title": "Entry Type",
+            "enum": [
+              "task",
+              "leave"
+            ]
           },
           "user_id": {
             "type": "string",
@@ -9344,7 +9478,12 @@
           },
           "role": {
             "type": "string",
-            "title": "Role"
+            "title": "Role",
+            "enum": [
+              "owner",
+              "manager",
+              "employee"
+            ]
           },
           "manager_id": {
             "anyOf": [
@@ -9518,7 +9657,13 @@
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "cancelled"
+            ]
           },
           "current_approver_id": {
             "anyOf": [
@@ -9783,7 +9928,12 @@
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "enum": [
+              "active",
+              "inactive",
+              "decommissioned"
+            ]
           },
           "is_active": {
             "type": "boolean",
@@ -9890,7 +10040,12 @@
           "status": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "active",
+                  "inactive",
+                  "decommissioned"
+                ]
               },
               {
                 "type": "null"
@@ -9939,7 +10094,13 @@
           },
           "scope_type": {
             "type": "string",
-            "title": "Scope Type"
+            "title": "Scope Type",
+            "enum": [
+              "user",
+              "team",
+              "project",
+              "global"
+            ]
           },
           "scope_id": {
             "anyOf": [
@@ -9955,7 +10116,11 @@
           },
           "effect": {
             "type": "string",
-            "title": "Effect"
+            "title": "Effect",
+            "enum": [
+              "allow",
+              "deny"
+            ]
           },
           "expires_at": {
             "anyOf": [
@@ -9984,7 +10149,12 @@
         "properties": {
           "role": {
             "type": "string",
-            "title": "Role"
+            "title": "Role",
+            "enum": [
+              "owner",
+              "manager",
+              "employee"
+            ]
           },
           "unrestricted": {
             "type": "boolean",
@@ -10132,7 +10302,12 @@
           },
           "applies_to_role": {
             "type": "string",
-            "title": "Applies To Role"
+            "title": "Applies To Role",
+            "enum": [
+              "manager",
+              "employee",
+              "any"
+            ]
           }
         },
         "type": "object",
@@ -10157,7 +10332,13 @@
           },
           "scope_type": {
             "type": "string",
-            "title": "Scope Type"
+            "title": "Scope Type",
+            "enum": [
+              "user",
+              "team",
+              "project",
+              "global"
+            ]
           },
           "scope_id": {
             "anyOf": [
@@ -10173,7 +10354,11 @@
           },
           "effect": {
             "type": "string",
-            "title": "Effect"
+            "title": "Effect",
+            "enum": [
+              "allow",
+              "deny"
+            ]
           },
           "expires_at": {
             "anyOf": [
@@ -10215,7 +10400,13 @@
           },
           "scope_type": {
             "type": "string",
-            "title": "Scope Type"
+            "title": "Scope Type",
+            "enum": [
+              "user",
+              "team",
+              "project",
+              "global"
+            ]
           },
           "scope_id": {
             "anyOf": [
@@ -10231,7 +10422,11 @@
           },
           "effect": {
             "type": "string",
-            "title": "Effect"
+            "title": "Effect",
+            "enum": [
+              "allow",
+              "deny"
+            ]
           },
           "granted_by": {
             "type": "string",
@@ -10305,7 +10500,15 @@
           "status": {
             "type": "string",
             "title": "Status",
-            "default": "not_started"
+            "default": "not_started",
+            "enum": [
+              "not_started",
+              "planning",
+              "in_progress",
+              "on_hold",
+              "completed",
+              "cancelled"
+            ]
           },
           "start_date": {
             "anyOf": [
@@ -10479,7 +10682,15 @@
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "enum": [
+              "not_started",
+              "planning",
+              "in_progress",
+              "on_hold",
+              "completed",
+              "cancelled"
+            ]
           },
           "start_date": {
             "anyOf": [
@@ -10577,7 +10788,15 @@
           "status": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "not_started",
+                  "planning",
+                  "in_progress",
+                  "on_hold",
+                  "completed",
+                  "cancelled"
+                ]
               },
               {
                 "type": "null"
@@ -10847,7 +11066,13 @@
           },
           "contact_method": {
             "type": "string",
-            "title": "Contact Method"
+            "title": "Contact Method",
+            "enum": [
+              "phone",
+              "email",
+              "in_person",
+              "other"
+            ]
           },
           "issue_reported": {
             "type": "string",
@@ -10857,11 +11082,24 @@
           "priority": {
             "type": "string",
             "title": "Priority",
-            "default": "medium"
+            "default": "medium",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ]
           },
           "service_type": {
             "type": "string",
-            "title": "Service Type"
+            "title": "Service Type",
+            "enum": [
+              "online_support",
+              "phone_support",
+              "remote_support",
+              "field_visit",
+              "other"
+            ]
           },
           "responsible_manager_id": {
             "anyOf": [
@@ -10959,7 +11197,13 @@
           },
           "contact_method": {
             "type": "string",
-            "title": "Contact Method"
+            "title": "Contact Method",
+            "enum": [
+              "phone",
+              "email",
+              "in_person",
+              "other"
+            ]
           },
           "issue_reported": {
             "type": "string",
@@ -10967,11 +11211,24 @@
           },
           "priority": {
             "type": "string",
-            "title": "Priority"
+            "title": "Priority",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ]
           },
           "service_type": {
             "type": "string",
-            "title": "Service Type"
+            "title": "Service Type",
+            "enum": [
+              "online_support",
+              "phone_support",
+              "remote_support",
+              "field_visit",
+              "other"
+            ]
           },
           "responsible_manager_id": {
             "type": "string",
@@ -10980,7 +11237,21 @@
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "enum": [
+              "new",
+              "assigned",
+              "in_progress",
+              "waiting_customer",
+              "waiting_parts",
+              "remote_support",
+              "field_visit_scheduled",
+              "field_visit_completed",
+              "resolved",
+              "closed",
+              "reopened",
+              "cancelled"
+            ]
           },
           "resolution": {
             "anyOf": [
@@ -11040,7 +11311,13 @@
           "priority": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "urgent"
+                ]
               },
               {
                 "type": "null"
@@ -11051,7 +11328,21 @@
           "status": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "new",
+                  "assigned",
+                  "in_progress",
+                  "waiting_customer",
+                  "waiting_parts",
+                  "remote_support",
+                  "field_visit_scheduled",
+                  "field_visit_completed",
+                  "resolved",
+                  "closed",
+                  "reopened",
+                  "cancelled"
+                ]
               },
               {
                 "type": "null"
@@ -11252,7 +11543,14 @@
           "service_type": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "online_support",
+                  "phone_support",
+                  "remote_support",
+                  "field_visit",
+                  "other"
+                ]
               },
               {
                 "type": "null"
@@ -11433,7 +11731,11 @@
         "properties": {
           "visit_type": {
             "type": "string",
-            "title": "Visit Type"
+            "title": "Visit Type",
+            "enum": [
+              "field_visit",
+              "online_support"
+            ]
           },
           "visit_date": {
             "anyOf": [
@@ -11589,7 +11891,11 @@
           },
           "visit_type": {
             "type": "string",
-            "title": "Visit Type"
+            "title": "Visit Type",
+            "enum": [
+              "field_visit",
+              "online_support"
+            ]
           },
           "visit_date": {
             "anyOf": [
@@ -11933,7 +12239,13 @@
           "priority": {
             "type": "string",
             "title": "Priority",
-            "default": "medium"
+            "default": "medium",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ]
           },
           "task_date": {
             "anyOf": [
@@ -12126,11 +12438,24 @@
           },
           "priority": {
             "type": "string",
-            "title": "Priority"
+            "title": "Priority",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ]
           },
           "status": {
             "type": "string",
-            "title": "Status"
+            "title": "Status",
+            "enum": [
+              "not_started",
+              "in_progress",
+              "blocked",
+              "completed",
+              "cancelled"
+            ]
           },
           "task_date": {
             "anyOf": [
@@ -12237,7 +12562,13 @@
           "priority": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "urgent"
+                ]
               },
               {
                 "type": "null"
@@ -12248,7 +12579,14 @@
           "status": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "not_started",
+                  "in_progress",
+                  "blocked",
+                  "completed",
+                  "cancelled"
+                ]
               },
               {
                 "type": "null"
@@ -12312,7 +12650,12 @@
           },
           "role": {
             "type": "string",
-            "title": "Role"
+            "title": "Role",
+            "enum": [
+              "owner",
+              "manager",
+              "employee"
+            ]
           },
           "manager_id": {
             "anyOf": [
@@ -12341,6 +12684,58 @@
           "initial_password"
         ],
         "title": "UserCreateRequest"
+      },
+      "UserDirectoryEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "employee_code": {
+            "type": "string",
+            "title": "Employee Code"
+          },
+          "designation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Designation"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "enum": [
+              "owner",
+              "manager",
+              "employee"
+            ]
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "employee_code",
+          "designation",
+          "role",
+          "is_active"
+        ],
+        "title": "UserDirectoryEntry",
+        "description": "Display fields only - what any logged-in user may see about a user they hold the id of."
       },
       "UserListResponse": {
         "properties": {
@@ -12401,7 +12796,12 @@
           },
           "role": {
             "type": "string",
-            "title": "Role"
+            "title": "Role",
+            "enum": [
+              "owner",
+              "manager",
+              "employee"
+            ]
           },
           "manager_id": {
             "anyOf": [
@@ -12466,7 +12866,12 @@
           },
           "role": {
             "type": "string",
-            "title": "Role"
+            "title": "Role",
+            "enum": [
+              "owner",
+              "manager",
+              "employee"
+            ]
           },
           "manager_id": {
             "anyOf": [
@@ -12539,7 +12944,12 @@
           "role": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "owner",
+                  "manager",
+                  "employee"
+                ]
               },
               {
                 "type": "null"

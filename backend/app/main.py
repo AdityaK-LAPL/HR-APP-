@@ -9,6 +9,7 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.middleware import RequestContextMiddleware
 from app.schemas.errors import ErrorResponse
+from app.schemas.openapi_enums import add_enums
 
 
 def create_app() -> FastAPI:
@@ -40,6 +41,14 @@ def create_app() -> FastAPI:
             422: {"model": ErrorResponse, "description": "Invalid request (see error.details)"},
         },
     )
+
+    # Describe enum-valued fields in the OpenAPI document (documentation only).
+    build_openapi = app.openapi
+
+    def openapi_with_enums() -> dict:
+        return add_enums(build_openapi())
+
+    app.openapi = openapi_with_enums  # type: ignore[method-assign]
 
     app.add_middleware(RequestContextMiddleware)
 

@@ -60,3 +60,16 @@ class UserListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class UserDirectoryEntry(BaseModel):
+    """Display fields only - what any logged-in user may see about a user they hold the id of."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    employee_code: str
+    designation: str | None
+    role: str
+    is_active: bool

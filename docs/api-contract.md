@@ -43,6 +43,7 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
 | `GET /users` | List users. Filters: `manager_id`, `role`, `is_active`, `search` (name/employee_code/designation). | Session | Owner: all. Manager: self + subtree. Employee: self only. |
+| `GET /users/directory` | **Names for ids.** Query: repeat `?ids=<uuid>` (1–100). Returns `[{id, name, employee_code, designation, role, is_active}]` for the ids that exist (unknown ids are omitted; deactivated users are included with `is_active=false`). Open to every logged-in user and deliberately returns *only* those display fields — it is how an Employee shows who assigned a task / approved a leave / reviewed a report, which `GET /users/{id}` (scoped) cannot do. Cannot enumerate users: the caller must already hold the ids. | Session | Any logged-in user. |
 | `GET /users/{id}` | Get one user's profile. | Session | Owner: any. Manager: self/subtree. Employee: self. |
 | `POST /users` | Create user. Body `{employee_code, name, designation, role, manager_id, initial_password}`. | Session | Owner only (Manager creation of employees is a possible future delegation — not enabled by default; see Open Questions). |
 | `PATCH /users/{id}` | Update profile fields (`name`, `designation`), `role`, `is_active` (deactivate). **Does not accept `manager_id`** — reassigning a manager is exclusively `PATCH /hierarchy/{user_id}/manager` (see below), so there is one code path, one audit action, and the cycle-prevention/closure-table triggers are always in the loop. | Session | Owner: any field on any user. Manager: `name`/`designation` only, on subtree only. Self: `name`/`designation` only. |
@@ -238,7 +239,7 @@ Schema and API only — nothing in the backend produces a notification automatic
 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
-| `GET /notifications` | Current user's notifications, filter `unread_only`. | Session | Self. |
+| `GET /notifications` | Current user's notifications, filter `unread_only`; each item is `{id, recipient_user_id, type, payload, read_at, created_at}`. `type` and `payload` are free-form until producers exist — render them generically and do not build deep links from an assumed `payload` shape. | Session | Self. |
 | `POST /notifications/{id}/read` | Mark read. | Session | Self (must be the recipient). |
 | `POST /notifications/read-all` | Mark all read. | Session | Self. |
 
@@ -268,7 +269,7 @@ Search is implemented as filter parameters on the relevant list endpoints, rathe
 
 ## 20. Enums Reference
 
-Every value below is enforced server-side with a Postgres `CHECK` constraint (see `backend/alembic/versions/`, constraint names `ck_*_valid`) — these are the exhaustive, authoritative value sets, not just current usage. Useful directly for frontend dropdowns, status badges, and filter controls without cross-referencing migration files.
+Every value below is also published as an `enum` on the corresponding fields in `docs/openapi.json` (so generated TypeScript types carry the unions; `tests/test_openapi_enums.py` keeps this table and the OpenAPI document in agreement). Every value below is enforced server-side with a Postgres `CHECK` constraint (see `backend/alembic/versions/`, constraint names `ck_*_valid`) — these are the exhaustive, authoritative value sets, not just current usage. Useful directly for frontend dropdowns, status badges, and filter controls without cross-referencing migration files.
 
 | Field | Values |
 |---|---|
@@ -344,7 +345,7 @@ Unbounded-by-design lists to be aware of: `/hierarchy` (Owner: every user), `/pe
 - [ ] One error handler over `{error:{code,message,details?}}`; map `details[].field` to form fields; treat `403`/`404` identically in the UI; show the request id from `internal_error` messages.
 - [ ] Generic paginated-table component for the 10 paginated lists; separate simple-list handling for `{items}`, `{items,total}` and bare arrays (§21).
 - [ ] Types generated from `docs/openapi.json` (now includes the real error schema); re-run `python -m scripts.contract_tools` after backend changes.
-- [ ] Build the org tree from `/hierarchy`'s flat list; resolve names from the node list rather than extra user lookups (Employees cannot read other users).
+- [ ] Build the org tree from `/hierarchy`'s flat list. Resolve **names for any user id** (assigner, approver, reviewer, actor, responsible manager…) in batches with `GET /users/directory` (max 100 ids per call), cached per id — Employees cannot read other users' profiles.
 - [ ] Respect `429` on login/refresh (back off) and the 5-failure account lock; handle `403 password_change_required` by sending the user to the change-password screen.
 - [ ] Use dropdown values from §20 (the server rejects anything else with `422`).
 - [ ] Remove the hardcoded demo-login buttons from `LoginPage.tsx` before any real deployment.
@@ -387,6 +388,7 @@ Generated from the running app by `python -m scripts.contract_tools`; do not edi
 | `POST /auth/change-password` | 204 | Session | - | current_password*, new_password* | (empty) |
 | `GET /users` | 200 | Session | manager_id, role, is_active, search, page, page_size | - | UserListResponse |
 | `POST /users` | 201 | Owner | - | employee_code*, name*, designation, role*, manager_id, initial_password* | UserResponse |
+| `GET /users/directory` | 200 | Session | ids* | - | UserDirectoryEntry[] |
 | `GET /users/{user_id}` | 200 | Session | - | - | UserResponse |
 | `PATCH /users/{user_id}` | 200 | Session | - | name, designation, role, is_active | UserResponse |
 | `GET /users/{user_id}/subordinates` | 200 | Session | - | - | UserResponse[] |

@@ -22,7 +22,7 @@ A visually complete prototype (login, shell, 3 dashboards, 13 module pages, 9 UI
 | `authService` / `AuthContext` | Mock login accepts **any password**; server `5xx` silently falls back to a fake "employee" user; identity stored in `localStorage` | **Rewrite** — security defect (a down backend would show a logged-in fake user) |
 | `AuthContext.can()` | ~30 hard-coded role rules ("manager can approve_leave", …) | **Delete** — duplicates backend authorization (prohibited); replace with §8 |
 | `types/models.ts` (22 interfaces) | Hand-written; **19 of 22 disagree with the API**: ~25 invented fields — mostly display names the API never returns (`assignee_name`, `customer_name`, `user_name`, `project_name`, `approver_name`… see D1) plus `member_count`/`machines_count` — and wrong names (`punch_in_at` vs `punch_in_time`, `file_size_bytes` vs `size_bytes`, task-history `field_name`/`created_at` vs `field_changed`/`changed_at`), and `must_reset` missing. Only 3 types are correct | **Delete** — generate from OpenAPI (§3) |
-| `types/enums.ts` | Matches `api-contract.md` §20 | **Keep**, add a contract test (§12) |
+| `types/enums.ts` | Matches `api-contract.md` §20 | **Replace** with unions generated from OpenAPI (it now publishes enums, D2); keep only label/colour maps |
 | Pages (`pages/**`) | Fetch with `useEffect`+`useState`, errors swallowed (`console.error`), no form validation, hard-coded fake IDs (e.g. `assigned_to: 'user-employee'`), Users/AuditLogs/Owner dashboard render mock arrays directly | **Rewrite data layer**, keep layout/visual design as reference |
 | Login page | Hard-coded "demo account" buttons (`OWN001` / `MGR001` / `EMP001` + fixed password) | **Remove** |
 | Routing | Flat `<Routes>`; `allowedRoles` guards; no lazy loading, no error boundary, no `must_reset` gate | **Restructure** (§4) |
@@ -163,7 +163,7 @@ Breakpoints: `<768` mobile (bottom nav, card lists, bottom-sheet dialogs), `768�
 
 ## 12. Testing
 
-Vitest + RTL + MSW handlers generated from the same typed schema. Priorities: (1) API client (refresh single-flight, CSRF, error mapping, offline), (2) auth flows incl. `must_reset`, (3) `PaginatedTable`/`useListQuery`, (4) permission helpers, (5) one happy-path test per feature page. Contract tests: `enums.ts` equals `api-contract.md` §20; generated schema equals `docs/openapi.json`. `npm run build` stays `tsc -b && vite build`; `npm test` added. Playwright cross-role/cross-device flows are Prompt 14.
+Vitest + RTL + MSW handlers generated from the same typed schema. Priorities: (1) API client (refresh single-flight, CSRF, error mapping, offline), (2) auth flows incl. `must_reset`, (3) `PaginatedTable`/`useListQuery`, (4) permission helpers, (5) one happy-path test per feature page. Contract test: the generated `schema.d.ts` equals what `docs/openapi.json` produces (enum equality with the contract is already tested backend-side). `npm run build` stays `tsc -b && vite build`; `npm test` added. Playwright cross-role/cross-device flows are Prompt 14.
 
 ## 13. PWA structure
 
@@ -179,13 +179,13 @@ These are API facts, not frontend bugs. Each is small and additive; none is buil
 
 | # | Finding | Impact | Needed by |
 |---|---|---|---|
-| **D1** | **No way to show a person's name unless you can list them** (the prototype's `*_name` fields assumed the API returned names; it does not). Records carry only IDs (`assigned_by`, `current_approver_id`, `reviewed_by`, `responsible_manager_id`, audit `actor_user_id`…). Owners/Managers can resolve via `GET /users` (their visible set, max 100/page), but an **Employee can only read their own user row**, so "see who assigned the task" (context.md §3.1), "who approved my leave", "who reviewed my service report" cannot be displayed. Customer/project names resolve only for entities the Employee can list. | Employee screens (Prompt 7) | **Prompt 7** |
-| D2 | OpenAPI declares enum fields as plain strings (validated server-side but not described), so generated types don't carry enum unions. | We keep `enums.ts` + contract test | Prompt 6 (nice-to-have) |
+| **D1 — RESOLVED 2026-10-09** | **No way to show a person's name unless you can list them** (the prototype's `*_name` fields assumed the API returned names; it does not). Records carry only IDs (`assigned_by`, `current_approver_id`, `reviewed_by`, `responsible_manager_id`, audit `actor_user_id`…). Owners/Managers can resolve via `GET /users` (their visible set, max 100/page), but an **Employee can only read their own user row**, so "see who assigned the task" (context.md §3.1), "who approved my leave", "who reviewed my service report" cannot be displayed. Customer/project names resolve only for entities the Employee can list. | Employee screens (Prompt 7) | **Prompt 7** |
+| D2 — **RESOLVED 2026-10-09** | OpenAPI now publishes `enum` on every enum-valued field (documentation-only post-processing, validation unchanged), so the generated types carry the unions; a backend test keeps them equal to the contract. | Drop hand-written `enums.ts`; use generated unions (derive dropdown option lists from the same constants) | Prompt 6 |
 | D3 | Attendance/EOD "today" is the **UTC calendar date** (`work_date`), while the UI shows local time. Near midnight local, a punch can land on the "wrong" day for non-UTC companies. Company timezone is an open business decision (status doc item 7). | Attendance/EOD/dashboard date logic | Prompt 7 |
 | D4 | `GET /hierarchy` and `/permissions/*` are unpaginated (fine at current scale). | Large orgs | later |
-| D5 | Notification `payload` shape per `type` is not specified in the contract. | Entity deep links | Prompt 12 |
+| D5 | Nothing in the backend produces notifications yet, so `type`/`payload` are undefined (api-contract §17). | Build the notification centre against the API and test data; no deep links until producers exist | Prompt 12 |
 
-**Recommended resolution of D1 (needs your decision):** add one read-only endpoint, e.g. `GET /users/directory?ids=<uuid,…>` (≤100 ids) returning only `{id, name, employee_code, designation, role}` for any logged-in user (same narrow-lookup pattern as the existing `app_user_stub`; UUIDs are unguessable and names are internal-directory data). Alternative: embed `*_name` fields in every response (bigger contract change). Without D1, Employee screens would show raw IDs or "Manager", which does not meet the requirement.
+**D1 resolution (implemented):** `GET /users/directory?ids=<uuid>&ids=<uuid>…` (1–100 ids) returns only `{id, name, employee_code, designation, role, is_active}` for any logged-in user (migration `0017`, same narrow-lookup pattern as `app_user_stub`; UUIDs are unguessable and names are internal-directory data). The frontend resolves every referenced person through one batched, cached `usePeople(ids)` hook; entities (projects, customers, machines) resolve from their own list/detail endpoints. **D3 is the only item still needing a business decision** (company timezone: the backend uses the UTC calendar date for attendance/EOD "today"; recommended default: keep UTC storage and add an explicit company-timezone setting before Prompt 7 builds the day-boundary logic).
 
 ---
 
@@ -194,7 +194,7 @@ These are API facts, not frontend bugs. Each is small and additive; none is buil
 | Prompt | Frontend deliverable | Key definition of done |
 |---|---|---|
 | **6** Foundation + auth | Enable strict; add deps/tooling/tests; generate API types; delete mock layer + `can()` + demo logins + hand types; new `api/client` (refresh, CSRF, errors, offline); `AuthProvider` (`/auth/me`, `must_reset`, logout broadcast); route config + lazy routes + error boundaries; login + change-password screens; shell/nav from config; hardened UI primitives (Dialog, FormField…); PWA foundation changes; viewport/a11y fixes | Real login/logout/refresh/expiry works against the live API; `tsc`, lint, tests, build green; no mock code in the bundle |
-| 7 Employee | Tasks, projects, leave, EOD, attendance, profile, service work (assigned calls, visits, reports), attachments | Each flow works against the API with loading/empty/error states; D1/D3 resolved first |
+| 7 Employee | Tasks, projects, leave, EOD, attendance, profile, service work (assigned calls, visits, reports), attachments | Each flow works against the API with loading/empty/error states; names via `/users/directory` (D1 done); D3 decided first |
 | 8 Manager | Team, task assignment, project allocation, leave approval, team EOD/attendance/calendar, service assignment, notifications | Scope shown is exactly what the API returns |
 | 9 Owner | Users, hierarchy, permissions (+`/permissions/me` consumers), audit log, admin screens | Only API-supported controls |
 | 10 Service | Customer → machine → call → assignment → visit → report workflow, technician mobile flow | |

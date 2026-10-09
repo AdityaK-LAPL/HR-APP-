@@ -11,7 +11,8 @@ inside an authenticated request context - enough to validate, nothing more.
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import text
+from sqlalchemy import ARRAY, bindparam, text
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -29,3 +30,12 @@ async def get_user_stub(db: AsyncSession, user_id: uuid.UUID) -> UserStub | None
         )
     ).first()
     return None if row is None else UserStub(id=row.id, role=row.role, is_active=row.is_active)
+
+
+async def get_directory(db: AsyncSession, user_ids: list[uuid.UUID]) -> list[dict]:
+    """Display fields for the given ids (unknown ids are simply absent)."""
+    statement = text(
+        "SELECT id, name, employee_code, designation, role, is_active "
+        "FROM app_user_directory(:ids)"
+    ).bindparams(bindparam("ids", value=user_ids, type_=ARRAY(PG_UUID(as_uuid=True))))
+    return [dict(row._mapping) for row in (await db.execute(statement)).all()]

@@ -9,8 +9,14 @@ from app.api.deps import get_current_user, require_owner
 from app.db.session import get_db
 from app.schemas.auth import ResetPasswordRequest
 from app.schemas.principal import CurrentUser
-from app.schemas.user import UserCreateRequest, UserListResponse, UserResponse, UserUpdateRequest
-from app.services import auth_service, user_service
+from app.schemas.user import (
+    UserCreateRequest,
+    UserDirectoryEntry,
+    UserListResponse,
+    UserResponse,
+    UserUpdateRequest,
+)
+from app.services import auth_service, user_lookup, user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -52,6 +58,19 @@ async def create_user(
 ) -> UserResponse:
     user = await user_service.create_user(db, actor=current_user, payload=payload)
     return UserResponse.model_validate(user)
+
+
+@router.get("/directory", response_model=list[UserDirectoryEntry])
+async def user_directory(
+    ids: list[uuid.UUID] = Query(..., min_length=1, max_length=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> list[UserDirectoryEntry]:
+    """Display names for user ids found in records the caller can see (repeat `?ids=`).
+
+    Open to every logged-in user and returns only id, name, employee_code, designation, role
+    and is_active - never profiles, hierarchy or anything else. Unknown ids are omitted."""
+    return [UserDirectoryEntry(**row) for row in await user_lookup.get_directory(db, ids)]
 
 
 @router.get("/{user_id}", response_model=UserResponse)
