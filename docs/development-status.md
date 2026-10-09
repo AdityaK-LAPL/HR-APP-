@@ -10,7 +10,8 @@ Last updated: 2026-09-28
 | 2 | Supabase security / RLS audit | **Complete** - RLS now enforced on application traffic (0013-0015); `anon`/`authenticated` locked out; 9 direct-DB RLS tests |
 | 3 | Backend performance review | **Complete** - indexes 0012, set-based policies 0015; findings, monitoring advice and remaining risk documented below |
 | 4 | Final API contract audit | **Complete** - see "API contract audit (Prompt 4)" below |
-| 5-18 | Frontend, audits, UAT | Not started |
+| 5 | Frontend architecture plan | **Complete (plan only, awaiting go-ahead for Prompt 6)** - `docs/frontend-architecture.md`; audit of the existing prototype frontend found it is built on a mock backend (see that document §1) |
+| 6-18 | Frontend implementation, audits, UAT | Not started |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
 

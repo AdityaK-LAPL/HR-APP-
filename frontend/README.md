@@ -1,32 +1,21 @@
-# React + TypeScript + Vite
+# Frontend (React + TypeScript + Vite PWA)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The architecture, conventions and delivery plan live in [`docs/frontend-architecture.md`](../docs/frontend-architecture.md).
+The API it consumes is documented in [`docs/api-contract.md`](../docs/api-contract.md) (types come from
+[`docs/openapi.json`](../docs/openapi.json)). The backend is authoritative: the frontend holds no business rules.
 
-Currently, two official plugins are available:
+> Status: the code here is a UI prototype built against a mock backend and is being re-wired to the real API
+> phase by phase (Prompts 6-13). Do not treat any page as production-ready until its phase is done.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Commands
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm ci
+npm run dev      # http://localhost:5173, proxies /api to http://127.0.0.1:8000
+npm run build    # tsc -b && vite build
+npm run lint     # oxlint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The scripts call `./node_modules/.bin/*` directly, so they work even though the project path contains a `:`.
+Start the API first (`uvicorn app.main:app --reload` in `backend/`) and create the first Owner with
+`python -m scripts.seed_owner` (see `backend/README.md`).
