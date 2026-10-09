@@ -2,6 +2,18 @@
 
 Last updated: 2026-09-28
 
+## Prompt progress (18-prompt plan) - updated 2026-10-09
+
+| Prompt | Scope | Status |
+|---|---|---|
+| 1 | Supabase integration-test fixes | **Complete** - 121/121 tests pass against live Supabase (migrations 0001-0015) |
+| 2 | Supabase security / RLS audit | **Complete** - RLS now enforced on application traffic (0013-0015); `anon`/`authenticated` locked out; 9 direct-DB RLS tests |
+| 3 | Backend performance review | **Complete** - indexes 0012, set-based policies 0015; findings, monitoring advice and remaining risk documented below |
+| 4 | Final API contract audit | **Next.** Baseline: `docs/openapi.json` is byte-identical to the live app (84 operations, 77 schemas) |
+| 5-18 | Frontend, audits, UAT | Not started |
+
+Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
 ## RLS enforcement on application traffic (Prompt 2 completion) - 2026-10-06
 
 **Problem**: every RLS policy was bypassed for the app's own queries (see the performance review below). The earlier audit's "RLS verified" statements were true for `anon`/`authenticated` and for the policy text, but not for application requests.

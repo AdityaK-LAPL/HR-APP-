@@ -43,9 +43,25 @@ alembic revision --autogenerate -m "describe the change"   # generate a new migr
 
 No migration that drops a column/table or otherwise destroys data should be applied without explicit confirmation — see the working rules in `context.md`.
 
+## First Owner account
+
+The API can only create users when an Owner is logged in, so seed the first one from `backend/`:
+
+```bash
+python -m scripts.seed_owner                    # employee code OWN001, random password printed once
+python -m scripts.seed_owner --employee-code OWN001 --name "Jane Doe"
+OWNER_PASSWORD='...' python -m scripts.seed_owner
+```
+
+It is idempotent (does nothing if the code exists) and creates the account with `must_reset = true`. **The test suite truncates the business tables**, so re-run the seed after running `pytest` against a shared development database.
+
+## Row-level security
+
+The app connects as the database owner but runs every request transaction as the `NOBYPASSRLS` role `hr_app_rls` (`APP_DB_ROLE`, created by migration `0013`), so PostgreSQL RLS applies to application queries in addition to the service-layer checks. A record outside the caller's visibility returns 404. Any new table needs RLS + `FORCE` + policies; keep hierarchy-scope policies in the set-based `col IN (SELECT descendant_id FROM manager_hierarchy_closure WHERE ancestor_id = ...)` form (see `docs/database.md`).
+
 ## Tests
 
-```powershell
+```bash
 pytest
 ```
 
@@ -69,6 +85,7 @@ backend/
     models/      # SQLAlchemy ORM models (added per phase)
     schemas/     # Pydantic request/response models (added per phase)
     services/    # business logic + authorization decisions (added per phase)
-  alembic/       # migrations
+  alembic/       # migrations (0001-0015)
+  scripts/       # one-off admin scripts (seed_owner)
   tests/
 ```
