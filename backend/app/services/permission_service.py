@@ -15,8 +15,9 @@ the caller, and always re-checks against the database.
 
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.identity import ManagerHierarchyClosure
@@ -38,6 +39,30 @@ async def in_scope(db: AsyncSession, actor: CurrentUser, target_user_id: uuid.UU
     )
     result = await db.execute(stmt)
     return result.first() is not None
+
+
+VisibilityKind = Literal["team", "reports", "calendar"]
+
+
+def visible_user_ids(kind: VisibilityKind):
+    """Subquery of the user ids whose data of `kind` the caller (per the request's RLS
+    context) may read: self, the reporting subtree, plus subtrees of explicit
+    view_manager_* allow grants, minus explicit deny grants. Evaluated by the database
+    (`app_visible_user_ids`, migration 0016) so the service layer and RLS cannot disagree.
+    `team` = view_manager_team (profiles/hierarchy); `reports` = view_manager_reports (EOD,
+    tasks, attendance); `calendar` = view_subordinate_manager_calendar."""
+
+    return select(func.app_visible_user_ids(kind).column_valued("visible_user_id"))
+
+
+async def can_view_user(
+    db: AsyncSession, actor: CurrentUser, target_user_id: uuid.UUID, kind: VisibilityKind
+) -> bool:
+    if actor.role == "owner" or target_user_id == actor.id:
+        return True
+    column = func.app_visible_user_ids(kind).column_valued("visible_user_id")
+    stmt = select(column).where(column == target_user_id)
+    return (await db.execute(stmt)).first() is not None
 
 
 async def has_permission(

@@ -1,6 +1,7 @@
 """Authentication endpoints - see docs/api-contract.md section 1."""
 
 from fastapi import APIRouter, Depends, Request, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -8,11 +9,22 @@ from app.core.cookies import REFRESH_TOKEN_COOKIE, clear_auth_cookies, set_auth_
 from app.core.errors import AuthenticationError
 from app.core.rate_limit import rate_limit_login
 from app.db.session import get_db
+from app.models.identity import User, UserCredentials
 from app.schemas.auth import ChangePasswordRequest, LoginRequest, UserProfile
 from app.schemas.errors import ErrorResponse
 from app.schemas.principal import CurrentUser
 from app.services import auth_service
 from app.services.user_service import get_user
+
+
+async def _profile(db: AsyncSession, user: User) -> UserProfile:
+    must_reset = (
+        await db.execute(
+            select(UserCredentials.must_reset).where(UserCredentials.user_id == user.id)
+        )
+    ).scalar_one_or_none()
+    return UserProfile.model_validate(user).model_copy(update={"must_reset": bool(must_reset)})
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -46,7 +58,7 @@ async def login(
         refresh_token=result.refresh_token,
         csrf_token=result.csrf_token,
     )
-    return UserProfile.model_validate(result.user)
+    return await _profile(db, result.user)
 
 
 @router.post(
@@ -74,7 +86,7 @@ async def refresh(
         refresh_token=result.refresh_token,
         csrf_token=result.csrf_token,
     )
-    return UserProfile.model_validate(result.user)
+    return await _profile(db, result.user)
 
 
 @router.post("/logout", status_code=204)
@@ -94,7 +106,8 @@ async def me(
     db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)
 ) -> UserProfile:
     user = await get_user(db, actor=current_user, user_id=current_user.id)
-    return UserProfile.model_validate(user)
+    profile = UserProfile.model_validate(user)
+    return profile.model_copy(update={"must_reset": current_user.must_reset})
 
 
 @router.post("/change-password", status_code=204)

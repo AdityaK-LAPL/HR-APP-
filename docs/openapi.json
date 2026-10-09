@@ -1306,6 +1306,78 @@
         }
       }
     },
+    "/api/v1/permissions/me": {
+      "get": {
+        "tags": [
+          "permissions"
+        ],
+        "summary": "My Permissions",
+        "description": "The caller's own role defaults and active grants (any logged-in user).",
+        "operationId": "my_permissions_api_v1_permissions_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyPermissionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/permissions/definitions": {
       "get": {
         "tags": [
@@ -9189,7 +9261,7 @@
           "code": {
             "type": "string",
             "title": "Code",
-            "description": "authentication_failed | forbidden | not_found | conflict | validation_failed | rate_limit_exceeded | http_error | internal_error"
+            "description": "authentication_failed | forbidden | password_change_required | not_found | conflict | validation_failed | rate_limit_exceeded | http_error | internal_error"
           },
           "message": {
             "type": "string",
@@ -9858,6 +9930,110 @@
         },
         "type": "object",
         "title": "ManagerReassignRequest"
+      },
+      "MyGrant": {
+        "properties": {
+          "permission_key": {
+            "type": "string",
+            "title": "Permission Key"
+          },
+          "scope_type": {
+            "type": "string",
+            "title": "Scope Type"
+          },
+          "scope_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Id"
+          },
+          "effect": {
+            "type": "string",
+            "title": "Effect"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "permission_key",
+          "scope_type",
+          "scope_id",
+          "effect",
+          "expires_at"
+        ],
+        "title": "MyGrant"
+      },
+      "MyPermissionsResponse": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "unrestricted": {
+            "type": "boolean",
+            "title": "Unrestricted",
+            "description": "True for the Owner, who holds every permission."
+          },
+          "role_defaults": {
+            "items": {
+              "$ref": "#/components/schemas/MyRoleDefault"
+            },
+            "type": "array",
+            "title": "Role Defaults"
+          },
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/MyGrant"
+            },
+            "type": "array",
+            "title": "Grants",
+            "description": "The caller's active (unrevoked, unexpired) grants."
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "unrestricted",
+          "role_defaults",
+          "grants"
+        ],
+        "title": "MyPermissionsResponse",
+        "description": "The caller's own permission configuration, for permission-aware UI.\n\nDisplay hints only - the server enforces every rule regardless. Evaluation order\nis explicit deny > explicit allow > reporting hierarchy > role default\n(docs/permissions.md section 5)."
+      },
+      "MyRoleDefault": {
+        "properties": {
+          "permission_key": {
+            "type": "string",
+            "title": "Permission Key"
+          },
+          "allow": {
+            "type": "boolean",
+            "title": "Allow"
+          }
+        },
+        "type": "object",
+        "required": [
+          "permission_key",
+          "allow"
+        ],
+        "title": "MyRoleDefault"
       },
       "NotificationListResponse": {
         "properties": {
@@ -12242,6 +12418,12 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "must_reset": {
+            "type": "boolean",
+            "title": "Must Reset",
+            "description": "True while the account has a temporary/admin-set password. The server rejects every endpoint except /auth/me, /auth/change-password and /auth/logout with 403 `password_change_required` until the password is changed.",
+            "default": false
           }
         },
         "type": "object",

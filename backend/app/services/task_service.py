@@ -13,13 +13,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthorizationError, NotFoundError, ValidationFailedError
-from app.models.identity import ManagerHierarchyClosure
 from app.models.project import Project
 from app.models.task import Task, TaskHistory
 from app.schemas.principal import CurrentUser
 from app.schemas.task import TaskCreateRequest, TaskUpdateRequest
 from app.services.audit_service import record_audit_log
-from app.services.permission_service import has_permission, in_scope
+from app.services.permission_service import (
+    can_view_user,
+    has_permission,
+    in_scope,
+    visible_user_ids,
+)
 from app.services.user_lookup import UserStub, get_user_stub
 
 TRACKED_FIELDS = (
@@ -115,7 +119,9 @@ async def get_task(db: AsyncSession, *, actor: CurrentUser, task_id: uuid.UUID) 
     task = (await db.execute(select(Task).where(Task.id == task_id))).scalar_one_or_none()
     if task is None:
         raise NotFoundError("Task not found.")
-    if not _task_visible(actor, task) and not await in_scope(db, actor, task.assigned_to):
+    if not _task_visible(actor, task) and not await can_view_user(
+        db, actor, task.assigned_to, "reports"
+    ):
         raise AuthorizationError("You do not have permission to view this task.")
     return task
 
@@ -134,10 +140,9 @@ async def list_tasks(
     stmt = select(Task)
 
     if actor.role == "manager":
-        subtree_ids = select(ManagerHierarchyClosure.descendant_id).where(
-            ManagerHierarchyClosure.ancestor_id == actor.id
+        stmt = stmt.where(
+            Task.assigned_to.in_(visible_user_ids("reports")) | (Task.assigned_by == actor.id)
         )
-        stmt = stmt.where(Task.assigned_to.in_(subtree_ids) | (Task.assigned_by == actor.id))
     elif actor.role != "owner":
         stmt = stmt.where(Task.assigned_to == actor.id)
 

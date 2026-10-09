@@ -18,7 +18,7 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 - **List shapes differ by endpoint** — see §21 for the exact table. In short: 11 collection endpoints are paginated (`?page=` ≥ 1, default 1; `?page_size=` 1–100, default 25) and return `{ items, total, page, page_size }`; a few return `{ items }` or `{ items, total }` without paging; the rest of the sub-resource lists return a bare JSON array.
 - Identifiers are UUID strings. Timestamps are ISO 8601 with timezone; dates are `YYYY-MM-DD`. Enum-valued fields are validated server-side: an invalid value in a request body is `422`, but an unknown value in a *query filter* (e.g. `?status=bogus`) is not an error and simply returns an empty list.
 - All timestamps are ISO 8601 UTC. Dates are `YYYY-MM-DD`.
-- Standard error shape: `{ "error": { "code", "message", "details"? } }`. `code` is one of `authentication_failed` (401), `forbidden` (403), `not_found` (404), `conflict` (409), `validation_failed` (422), `rate_limit_exceeded` (429, login/refresh only), `internal_error` (500, message carries a request id), `http_error` (other HTTP errors). `details` is present only on request-validation failures (`validation_failed` from malformed input) and is a list of `{field, message, type}` — one per invalid field, `field` being the request field name — so forms can show per-field errors; input values are never echoed back. Business-rule violations are also `422 validation_failed` but have no `details` (message only). `403` when the caller can see the record but is not allowed to perform the action (e.g. an employee editing a field only a manager may change). `404` when the record is outside the caller's visibility — PostgreSQL row-level security (enforced on every application query since migration `0013`) hides rows the caller may not see, so the API answers "not found" and never confirms that the record exists. The frontend should treat both as "not allowed / not available".
+- Standard error shape: `{ "error": { "code", "message", "details"? } }`. `code` is one of `authentication_failed` (401), `forbidden` (403), `not_found` (404), `conflict` (409), `validation_failed` (422), `password_change_required` (403, see §1), `rate_limit_exceeded` (429, login/refresh only), `internal_error` (500, message carries a request id), `http_error` (other HTTP errors). `details` is present only on request-validation failures (`validation_failed` from malformed input) and is a list of `{field, message, type}` — one per invalid field, `field` being the request field name — so forms can show per-field errors; input values are never echoed back. Business-rule violations are also `422 validation_failed` but have no `details` (message only). `403` when the caller can see the record but is not allowed to perform the action (e.g. an employee editing a field only a manager may change). `404` when the record is outside the caller's visibility — PostgreSQL row-level security (enforced on every application query since migration `0013`) hides rows the caller may not see, so the API answers "not found" and never confirms that the record exists. The frontend should treat both as "not allowed / not available".
 - "Permission" column states the *server-side* rule; the frontend must not infer access from UI state.
 
 ---
@@ -27,10 +27,10 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
-| `POST /auth/login` | Body `{employee_code, password}`. Sets access/refresh cookies. Returns user profile (no password fields). | None | Public |
+| `POST /auth/login` | Body `{employee_code, password}`. Sets access/refresh cookies. Returns the user profile `{id, employee_code, name, designation, role, manager_id, is_active, must_reset}` (no password fields). **`must_reset: true`** means the account still has a temporary/admin-set password: the server then rejects every endpoint except `GET /auth/me`, `POST /auth/change-password` and `POST /auth/logout` with `403` `password_change_required` until the password is changed. Changing it revokes all sessions, so the client logs in again afterwards. | None | Public |
 | `POST /auth/logout` | Revokes current session. | Session | Self |
 | `POST /auth/refresh` | Rotates refresh token, issues new access token. Rate-limited with login (`429` `rate_limit_exceeded`). Login is also rate-limited per IP and locks an account after 5 consecutive failures. | Refresh cookie | Self |
-| `GET /auth/me` | Returns current user's profile + role + manager_id. | Session | Self |
+| `GET /auth/me` | Returns current user's profile (same shape as login, including `must_reset`). Usable while `must_reset` is true. | Session | Self |
 | `POST /auth/change-password` | Body `{current_password, new_password}`. | Session | Self |
 | `GET /health` | Liveness check, `{status}`. | None | Public |
 | `GET /health/db` | Database connectivity; `503` with the standard error shape when the database is unreachable. | None | Public |
@@ -56,10 +56,21 @@ If `docs/openapi.json` and this file ever disagree on a request/response shape, 
 |---|---|---|---|
 | `GET /hierarchy` | **Flat list** of nodes `{id, employee_code, name, role, manager_id}` (build the tree client-side from `manager_id`), sorted by name. Optional `root_user_id` (Owner only; ignored for Managers) restricts it to that user's subtree, root included. | Session | Owner: full tree. Manager: own subtree. |
 | `PATCH /hierarchy/{user_id}/manager` | Reassign a user's direct manager. Body `{manager_id}`. Triggers closure table recompute + audit log. | Session | Owner only. |
+| `GET /permissions/me` | The **caller's own** permission configuration for permission-aware UI: `{role, unrestricted (Owner), role_defaults: [{permission_key, allow}], grants: [{permission_key, scope_type, scope_id, effect, expires_at}]}` (active grants only). Display hint only; the server enforces everything regardless. | Session | Any logged-in user (own data only). |
 | `GET /permissions/definitions` | List available permission keys/descriptions. | Session | **Owner only** (`403` for everyone else). There is no endpoint that returns the caller's own effective permissions — see §22. |
 | `GET /permissions/grants` | List active grants. Filters: `grantee_user_id`, `permission_key`, `scope_type`. | Session | Owner only. |
 | `POST /permissions/grants` | Create a grant/override. Body `{grantee_user_id, permission_key, scope_type, scope_id, effect, expires_at?}`. | Session | Owner only. |
 | `DELETE /permissions/grants/{id}` | Soft-revoke a grant (`revoked_at`). | Session | Owner only. |
+
+**Manager-visibility grants (enforced).** Three catalogued permissions change what a Manager may *read*, using `scope_type=user, scope_id=<manager B>` grants:
+
+| Permission | Effect of an `allow` scoped to B | Where it applies |
+|---|---|---|
+| `view_manager_team` | Manager A can see B **and B's whole branch** as users | `GET /users`, `/users/{id}`, `/users/{id}/subordinates`, `GET /hierarchy` |
+| `view_manager_reports` | A can see the EOD reports, tasks and attendance of B's whole branch | `GET /tasks` (+`/{id}`, `/history`), `/eod`, `/attendance` (+events), `/reports/tasks`, `/reports/attendance`, `/reports/workload` |
+| `view_subordinate_manager_calendar` | A's team calendar includes/excludes B's branch | `GET /calendar` (the underlying tasks/leave rows must also be readable) |
+
+An explicit `deny` scoped to U removes U **and U's branch** for that kind even from the grantee's own reporting subtree (the Owner's carve-out), and deny beats allow. A Manager always sees themself. Grants are read-only: viewing a peer's data never allows editing it (writes keep the plain reporting-hierarchy rule). Leave and service-management visibility are unchanged (reporting hierarchy / assignment based). Revoked and expired grants have no effect. The rules are evaluated inside PostgreSQL (`app_visible_user_ids`, migration `0016`), so the API and row-level security cannot disagree.
 
 ---
 
@@ -304,7 +315,7 @@ Unbounded-by-design lists to be aware of: `/hierarchy` (Owner: every user), `/pe
 ## 22. Frontend Integration Checklist
 
 ### Endpoints the frontend MUST use
-- **Session:** `POST /auth/login` → `GET /auth/me` on every app start (the only source of the caller's `role`, `id`, `manager_id`) → `POST /auth/refresh` on `401` (once, then retry) → `POST /auth/logout`. `POST /auth/change-password` is required UX: accounts created by the API or the seed script start with a forced change (`must_reset`) — note `GET /auth/me`/login do **not** currently return `must_reset`, so the client cannot detect it; see "Known gaps".
+- **Session:** `POST /auth/login` → `GET /auth/me` on every app start (the source of the caller's `role`, `id`, `manager_id`, `must_reset`) → `GET /permissions/me` for permission-aware UI → `POST /auth/refresh` on `401` (once, then retry) → `POST /auth/logout`. `POST /auth/change-password` is required UX: accounts created by the API or the seed script start with `must_reset: true` (returned by login and `/auth/me`) and are blocked from everything else until the password is changed.
 - **Employee surface:** `/tasks` (+`PATCH` status), `/projects`, `/leaves`, `/eod`, `/attendance` (+`punch-in`/`punch-out`), `/service-calls` + `/visits` + `/reports`, `/attachments`, `/notifications`.
 - **Manager adds:** `/users` (scoped), `/users/{id}/subordinates`, `POST /tasks`, project member endpoints, `POST /leaves/{id}/approve|reject`, `/calendar`, `/reports/*`, `/service-calls/{id}/assign`.
 - **Owner adds:** `POST /users`, `PATCH /users/{id}`, `PATCH /hierarchy/{id}/manager`, `/permissions/*`, `/audit-logs`.
@@ -320,12 +331,13 @@ Unbounded-by-design lists to be aware of: `/hierarchy` (Owner: every user), `/pe
 - **`404` vs `403`:** see Conventions. Treat both as "not available to you".
 - **Attachments:** `GET /attachments/{id}` returns a short-lived `download_url`; `GET /attachments/{id}/download` always streams through the API with the session cookie. Upload is `multipart/form-data` (`entity_type`, `entity_id`, `file`); the server rejects unknown extensions, files over 25 MB and content whose magic bytes don't match the extension (`422`).
 
-### Known gaps the frontend must plan around (backend decisions, not frontend bugs)
-1. **No "my permissions" endpoint.** `GET /auth/me` returns only `{id, employee_code, name, designation, role, manager_id, is_active}`. Permission-aware UI can key off `role` and handle `403`/`404`; it cannot discover which grants the caller holds.
-2. **Three catalogued permissions are not enforced anywhere:** `view_manager_team`, `view_manager_reports` and `view_subordinate_manager_calendar` exist in `/permissions/definitions` and can be granted (the evaluator unit-tests pass), but no endpoint or RLS policy consults them, so granting "Manager A may see Manager B's reports" currently changes nothing. Do not build Owner UI that promises these until the backend enforces them (tracked in `docs/development-status.md`).
-3. **`must_reset` is not exposed** (see above), so a forced password change cannot be triggered from the client.
+### Behaviour worth knowing (previously audit gaps - all resolved 2026-10-09)
+1. **Permission-aware UI:** use `GET /permissions/me` for the caller's role defaults and grants, plus `role` from `/auth/me`; still handle `403`/`404`, which are authoritative.
+2. **Manager-visibility grants are enforced** (§3): the Owner's permission UI can offer them. A grant covers the target manager's whole branch; deny beats allow.
+3. **Forced password change:** read `must_reset` from login or `/auth/me`; while true, route the user to a change-password screen (every other call returns `403 password_change_required`). Re-login after changing.
 4. **Date-range filters** exist only on `/attendance`, `/calendar` and `/reports/attendance`; `/tasks` and `/eod` filter by one exact date, `/leaves` has none.
 5. **Error `details`** are only on malformed-input `422`s, not on business-rule `422`s.
+6. Text filters match literally (a typed `%` or `_` is not a wildcard).
 
 ### Frontend implementation checklist
 - [ ] API client: `credentials: "include"`, JSON, echo `csrf_token` cookie as `X-CSRF-Token` on `POST/PATCH/DELETE`; on `401` try `/auth/refresh` once then redirect to login.
@@ -333,7 +345,7 @@ Unbounded-by-design lists to be aware of: `/hierarchy` (Owner: every user), `/pe
 - [ ] Generic paginated-table component for the 10 paginated lists; separate simple-list handling for `{items}`, `{items,total}` and bare arrays (§21).
 - [ ] Types generated from `docs/openapi.json` (now includes the real error schema); re-run `python -m scripts.contract_tools` after backend changes.
 - [ ] Build the org tree from `/hierarchy`'s flat list; resolve names from the node list rather than extra user lookups (Employees cannot read other users).
-- [ ] Respect `429` on login/refresh (back off) and the 5-failure account lock.
+- [ ] Respect `429` on login/refresh (back off) and the 5-failure account lock; handle `403 password_change_required` by sending the user to the change-password screen.
 - [ ] Use dropdown values from §20 (the server rejects anything else with `422`).
 - [ ] Remove the hardcoded demo-login buttons from `LoginPage.tsx` before any real deployment.
 
@@ -381,6 +393,7 @@ Generated from the running app by `python -m scripts.contract_tools`; do not edi
 | `POST /users/{user_id}/reset-password` | 204 | Session | - | temporary_password* | (empty) |
 | `GET /hierarchy` | 200 | Session | root_user_id | - | HierarchyNode[] |
 | `PATCH /hierarchy/{user_id}/manager` | 200 | Owner | - | manager_id | HierarchyNode |
+| `GET /permissions/me` | 200 | Session | - | - | MyPermissionsResponse |
 | `GET /permissions/definitions` | 200 | Owner | - | - | PermissionDefinitionResponse[] |
 | `GET /permissions/grants` | 200 | Owner | grantee_user_id, permission_key, scope_type | - | PermissionGrantResponse[] |
 | `POST /permissions/grants` | 201 | Owner | - | grantee_user_id*, permission_key*, scope_type*, scope_id, effect*, expires_at | PermissionGrantResponse |

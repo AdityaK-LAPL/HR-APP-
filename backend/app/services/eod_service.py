@@ -12,10 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthorizationError, NotFoundError
 from app.models.eod import EodReport
-from app.models.identity import ManagerHierarchyClosure
 from app.schemas.eod import EodCreateRequest
 from app.schemas.principal import CurrentUser
-from app.services.permission_service import in_scope
+from app.services.permission_service import can_view_user, visible_user_ids
 
 
 async def submit_eod(
@@ -42,11 +41,7 @@ async def get_eod(db: AsyncSession, *, actor: CurrentUser, eod_id: uuid.UUID) ->
     ).scalar_one_or_none()
     if report is None:
         raise NotFoundError("EOD report not found.")
-    if (
-        actor.role != "owner"
-        and report.user_id != actor.id
-        and not await in_scope(db, actor, report.user_id)
-    ):
+    if not await can_view_user(db, actor, report.user_id, "reports"):
         raise AuthorizationError("You do not have permission to view this EOD report.")
     return report
 
@@ -64,10 +59,7 @@ async def list_eod(
     stmt = select(EodReport)
 
     if actor.role == "manager":
-        subtree_ids = select(ManagerHierarchyClosure.descendant_id).where(
-            ManagerHierarchyClosure.ancestor_id == actor.id
-        )
-        stmt = stmt.where(EodReport.user_id.in_(subtree_ids) | (EodReport.user_id == actor.id))
+        stmt = stmt.where(EodReport.user_id.in_(visible_user_ids("reports")))
     elif actor.role != "owner":
         stmt = stmt.where(EodReport.user_id == actor.id)
 

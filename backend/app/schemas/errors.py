@@ -16,8 +16,8 @@ class FieldError(BaseModel):
 
 class ErrorBody(BaseModel):
     code: str = Field(
-        description="authentication_failed | forbidden | not_found | conflict | validation_failed "
-        "| rate_limit_exceeded | http_error | internal_error"
+        description="authentication_failed | forbidden | password_change_required | not_found "
+        "| conflict | validation_failed | rate_limit_exceeded | http_error | internal_error"
     )
     message: str
     details: list[FieldError] | None = Field(

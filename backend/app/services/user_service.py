@@ -17,7 +17,8 @@ from app.models.identity import ManagerHierarchyClosure, User, UserCredentials
 from app.schemas.principal import CurrentUser
 from app.schemas.user import UserCreateRequest, UserUpdateRequest
 from app.services.audit_service import record_audit_log
-from app.services.permission_service import in_scope
+from app.services.permission_service import can_view_user, in_scope, visible_user_ids
+from app.services.search import ESCAPE, like_pattern
 
 
 async def create_user(db: AsyncSession, *, actor: CurrentUser, payload: UserCreateRequest) -> User:
@@ -79,7 +80,7 @@ async def get_user(db: AsyncSession, *, actor: CurrentUser, user_id: uuid.UUID) 
     user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if user is None:
         raise NotFoundError("User not found.")
-    if not await in_scope(db, actor, user_id):
+    if not await can_view_user(db, actor, user_id, "team"):
         raise AuthorizationError("You do not have permission to view this user.")
     return user
 
@@ -100,10 +101,7 @@ async def list_users(
     if actor.role == "owner":
         pass
     elif actor.role == "manager":
-        subtree_stmt = select(ManagerHierarchyClosure.descendant_id).where(
-            ManagerHierarchyClosure.ancestor_id == actor.id
-        )
-        stmt = stmt.where(User.id.in_(subtree_stmt))
+        stmt = stmt.where(User.id.in_(visible_user_ids("team")))
     else:
         stmt = stmt.where(User.id == actor.id)
 
@@ -114,11 +112,11 @@ async def list_users(
     if is_active is not None:
         stmt = stmt.where(User.is_active == is_active)
     if search:
-        pattern = f"%{search}%"
+        pattern = like_pattern(search)
         stmt = stmt.where(
-            User.name.ilike(pattern)
-            | User.employee_code.ilike(pattern)
-            | User.designation.ilike(pattern)
+            User.name.ilike(pattern, escape=ESCAPE)
+            | User.employee_code.ilike(pattern, escape=ESCAPE)
+            | User.designation.ilike(pattern, escape=ESCAPE)
         )
 
     total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
@@ -131,8 +129,10 @@ async def list_users(
 async def get_subordinates(
     db: AsyncSession, *, actor: CurrentUser, user_id: uuid.UUID
 ) -> list[User]:
-    if actor.role != "owner" and user_id != actor.id:
+    if actor.role == "employee" and user_id != actor.id:
         raise AuthorizationError("You may only view your own subordinates.")
+    if not await can_view_user(db, actor, user_id, "team"):
+        raise AuthorizationError("You may only view the teams you have been given access to.")
     stmt = (
         select(User)
         .join(ManagerHierarchyClosure, ManagerHierarchyClosure.descendant_id == User.id)

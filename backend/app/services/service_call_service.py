@@ -26,6 +26,7 @@ from app.schemas.service import (
 )
 from app.services.audit_service import record_audit_log
 from app.services.permission_service import has_permission, in_scope
+from app.services.search import ESCAPE, like_pattern
 from app.services.user_lookup import get_user_stub
 
 
@@ -130,8 +131,7 @@ async def create_service_call(
                 "responsible_manager_id must reference an Owner or Manager."
             )
         if actor.role == "manager" and not (
-            responsible_manager_id == actor.id
-            or await in_scope(db, actor, responsible_manager_id)
+            responsible_manager_id == actor.id or await in_scope(db, actor, responsible_manager_id)
         ):
             raise AuthorizationError(
                 "You cannot assign responsibility to a manager outside your scope."
@@ -220,7 +220,9 @@ async def list_service_calls(
     if status is not None:
         stmt = stmt.where(ServiceCall.status == status)
     if service_call_code:
-        stmt = stmt.where(ServiceCall.service_call_code.ilike(f"%{service_call_code}%"))
+        stmt = stmt.where(
+            ServiceCall.service_call_code.ilike(like_pattern(service_call_code), escape=ESCAPE)
+        )
     if employee_id is not None:
         employee_call_ids = select(ServiceAssignment.service_call_id).where(
             ServiceAssignment.employee_id == employee_id, ServiceAssignment.is_active.is_(True)

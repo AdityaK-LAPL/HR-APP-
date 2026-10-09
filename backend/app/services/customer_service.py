@@ -25,6 +25,7 @@ from app.schemas.customer import (
 )
 from app.schemas.principal import CurrentUser
 from app.services.permission_service import in_scope
+from app.services.search import ESCAPE, like_pattern
 
 
 async def _get_customer(db: AsyncSession, customer_id: uuid.UUID) -> Customer:
@@ -106,8 +107,10 @@ async def list_contacts(
     db: AsyncSession, *, actor: CurrentUser, customer_id: uuid.UUID
 ) -> list[CustomerContact]:
     await get_customer(db, actor=actor, customer_id=customer_id)
-    stmt = select(CustomerContact).where(CustomerContact.customer_id == customer_id).order_by(
-        CustomerContact.is_primary.desc(), CustomerContact.name
+    stmt = (
+        select(CustomerContact)
+        .where(CustomerContact.customer_id == customer_id)
+        .order_by(CustomerContact.is_primary.desc(), CustomerContact.name)
     )
     return list((await db.execute(stmt)).scalars().all())
 
@@ -134,23 +137,24 @@ async def list_customers(
         stmt = stmt.where(Customer.id.in_(assigned_customer_ids))
 
     if name:
-        stmt = stmt.where(Customer.name.ilike(f"%{name}%"))
+        stmt = stmt.where(Customer.name.ilike(like_pattern(name), escape=ESCAPE))
     if customer_code:
-        stmt = stmt.where(Customer.customer_code.ilike(f"%{customer_code}%"))
+        stmt = stmt.where(Customer.customer_code.ilike(like_pattern(customer_code), escape=ESCAPE))
     if contact:
-        pattern = f"%{contact}%"
+        pattern = like_pattern(contact)
         contact_match = select(CustomerContact.id).where(
             CustomerContact.customer_id == Customer.id,
             or_(
-                CustomerContact.name.ilike(pattern),
-                CustomerContact.phone.ilike(pattern),
-                CustomerContact.email.ilike(pattern),
+                CustomerContact.name.ilike(pattern, escape=ESCAPE),
+                CustomerContact.phone.ilike(pattern, escape=ESCAPE),
+                CustomerContact.email.ilike(pattern, escape=ESCAPE),
             ),
         )
         stmt = stmt.where(contact_match.exists())
     if machine_serial:
         machine_match = select(Machine.id).where(
-            Machine.customer_id == Customer.id, Machine.serial_number.ilike(f"%{machine_serial}%")
+            Machine.customer_id == Customer.id,
+            Machine.serial_number.ilike(like_pattern(machine_serial), escape=ESCAPE),
         )
         stmt = stmt.where(machine_match.exists())
 

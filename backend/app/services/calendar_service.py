@@ -17,20 +17,21 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.identity import ManagerHierarchyClosure, User
+from app.models.identity import User
 from app.models.leave import LeaveRequest
 from app.models.task import Task
 from app.schemas.calendar import CalendarEntry
 from app.schemas.principal import CurrentUser
+from app.services.permission_service import visible_user_ids
 
 
 def _scoped_user_ids(actor: CurrentUser):
     if actor.role == "owner":
         return None
     if actor.role == "manager":
-        return select(ManagerHierarchyClosure.descendant_id).where(
-            ManagerHierarchyClosure.ancestor_id == actor.id
-        )
+        # Honours view_subordinate_manager_calendar allow/deny grants; row-level security
+        # still decides which tasks/leave rows are readable at all.
+        return visible_user_ids("calendar")
     # A plain list (not select(literal(...))): a bare literal is bound
     # untyped and asyncpg sends it as text, giving "uuid = text".
     return [actor.id]

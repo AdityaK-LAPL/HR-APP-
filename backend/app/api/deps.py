@@ -18,13 +18,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cookies import ACCESS_TOKEN_COOKIE, CSRF_HEADER, CSRF_TOKEN_COOKIE
-from app.core.errors import AuthenticationError, AuthorizationError
+from app.core.errors import AuthenticationError, AuthorizationError, PasswordChangeRequiredError
 from app.core.security import decode_access_token
 from app.db.session import get_db, set_rls_context
-from app.models.identity import User
+from app.models.identity import User, UserCredentials
 from app.schemas.principal import CurrentUser
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+# The only endpoints usable while the account still has a temporary password.
+MUST_RESET_ALLOWED_PATHS = {
+    "/api/v1/auth/me",
+    "/api/v1/auth/change-password",
+    "/api/v1/auth/logout",
+}
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> CurrentUser:
@@ -41,11 +48,17 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
 
     await set_rls_context(db, user_id=str(claimed_user_id), role=claimed_role)
 
-    user = (
-        await db.execute(select(User).where(User.id == claimed_user_id))
-    ).scalar_one_or_none()
+    row = (
+        await db.execute(
+            select(User, UserCredentials.must_reset)
+            .join(UserCredentials, UserCredentials.user_id == User.id, isouter=True)
+            .where(User.id == claimed_user_id)
+        )
+    ).first()
+    user = row[0] if row else None
     if user is None or not user.is_active:
         raise AuthenticationError("Session is no longer valid.")
+    must_reset = bool(row[1])
 
     if user.role != claimed_role:
         # The Owner changed this user's role since the access token was
@@ -59,7 +72,16 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
         if not header_token or not cookie_token or header_token != cookie_token:
             raise AuthorizationError("Missing or invalid CSRF token.")
 
-    return CurrentUser(id=user.id, employee_code=user.employee_code, name=user.name, role=user.role)
+    if must_reset and request.url.path not in MUST_RESET_ALLOWED_PATHS:
+        raise PasswordChangeRequiredError("You must change your temporary password first.")
+
+    return CurrentUser(
+        id=user.id,
+        employee_code=user.employee_code,
+        name=user.name,
+        role=user.role,
+        must_reset=must_reset,
+    )
 
 
 def require_role(*roles: str) -> Callable[..., Coroutine[None, None, CurrentUser]]:

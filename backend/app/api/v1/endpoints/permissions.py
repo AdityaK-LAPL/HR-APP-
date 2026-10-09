@@ -6,9 +6,10 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_owner
+from app.api.deps import get_current_user, require_owner
 from app.db.session import get_db
 from app.schemas.permission import (
+    MyPermissionsResponse,
     PermissionDefinitionResponse,
     PermissionGrantCreateRequest,
     PermissionGrantResponse,
@@ -17,6 +18,16 @@ from app.schemas.principal import CurrentUser
 from app.services import permission_grant_service
 
 router = APIRouter(prefix="/permissions", tags=["permissions"])
+
+
+@router.get("/me", response_model=MyPermissionsResponse)
+async def my_permissions(
+    db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(get_current_user)
+) -> MyPermissionsResponse:
+    """The caller's own role defaults and active grants (any logged-in user)."""
+    return MyPermissionsResponse.model_validate(
+        await permission_grant_service.my_permissions(db, actor=current_user)
+    )
 
 
 @router.get("/definitions", response_model=list[PermissionDefinitionResponse])

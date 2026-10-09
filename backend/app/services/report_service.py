@@ -28,15 +28,20 @@ from app.schemas.report import (
     TaskReportResponse,
     WorkloadRow,
 )
+from app.services.permission_service import VisibilityKind, visible_user_ids
 
 RESOLVED_STATUSES = ("resolved", "closed")
 
 
-def _scoped_user_ids(actor: CurrentUser):
-    """None means "no filter" (Owner sees everyone)."""
+def _scoped_user_ids(actor: CurrentUser, kind: VisibilityKind | None = None):
+    """None means "no filter" (Owner sees everyone). With `kind`, a Manager's scope also
+    honours the Owner's view_manager_* allow/deny grants (see permission_service);
+    without it, the plain reporting hierarchy."""
     if actor.role == "owner":
         return None
     if actor.role == "manager":
+        if kind is not None:
+            return visible_user_ids(kind)
         return select(ManagerHierarchyClosure.descendant_id).where(
             ManagerHierarchyClosure.ancestor_id == actor.id
         )
@@ -57,7 +62,7 @@ async def attendance_report(
         func.coalesce(func.sum(AttendanceDay.total_duration_minutes), 0).label("total_minutes"),
     ).group_by(AttendanceDay.user_id)
 
-    scoped_ids = _scoped_user_ids(actor)
+    scoped_ids = _scoped_user_ids(actor, "reports")
     if scoped_ids is not None:
         stmt = stmt.where(AttendanceDay.user_id.in_(scoped_ids))
     if manager_id is not None:
@@ -84,7 +89,7 @@ async def task_report(
 ) -> TaskReportResponse:
     stmt = select(Task.status, func.count(Task.id)).group_by(Task.status)
 
-    scoped_ids = _scoped_user_ids(actor)
+    scoped_ids = _scoped_user_ids(actor, "reports")
     if scoped_ids is not None:
         stmt = stmt.where(Task.assigned_to.in_(scoped_ids))
     if project_id is not None:
@@ -108,7 +113,7 @@ async def leave_report(db: AsyncSession, *, actor: CurrentUser) -> LeaveReportRe
 
 
 async def workload_report(db: AsyncSession, *, actor: CurrentUser) -> list[WorkloadRow]:
-    scoped_ids = _scoped_user_ids(actor)
+    scoped_ids = _scoped_user_ids(actor, "reports")
 
     task_stmt = (
         select(Task.assigned_to, func.count(Task.id))

@@ -27,3 +27,9 @@ class UserProfile(BaseModel):
     role: str
     manager_id: uuid.UUID | None
     is_active: bool
+    must_reset: bool = Field(
+        default=False,
+        description="True while the account has a temporary/admin-set password. The server "
+        "rejects every endpoint except /auth/me, /auth/change-password and /auth/logout with "
+        "403 `password_change_required` until the password is changed.",
+    )

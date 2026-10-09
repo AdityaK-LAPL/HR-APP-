@@ -26,11 +26,11 @@ Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account
 - Tooling: `python -m scripts.contract_tools` regenerates `docs/openapi.json` and a generated per-operation reference (Appendix A); `--check` and `tests/test_contract_docs.py` fail the suite if either drifts. New `tests/test_api_errors.py` pins the error contract.
 - Added the frontend integration checklist (§22): must-use / optional / special-permission endpoints and known gaps.
 
-**Known backend gaps found (documented in `api-contract.md` §22, not fixed - they are features, not contract drift)**
-1. `view_manager_team`, `view_manager_reports`, `view_subordinate_manager_calendar` are in the permission catalog and grantable, but **no endpoint or RLS policy enforces them** - granting "Manager A may see Manager B's reports" currently has no effect (the evaluator unit tests pass; nothing calls it for these keys). Must be implemented (service layer + RLS) before the Owner permissions UI (Prompt 9) or manager-visibility behaviour (Prompt 8) is built on it.
-2. No "my effective permissions" endpoint (`/auth/me` returns role only).
-3. `must_reset` is not returned by login/`/auth/me`, so the client cannot trigger the forced password change.
-4. Minor: text filters pass user input into `ILIKE` without escaping `%`/`_` (no injection risk; a literal `%` matches everything).
+**Known backend gaps found by the audit - all resolved 2026-10-09 (migration `0016` + code)**
+1. `view_manager_team` / `view_manager_reports` / `view_subordinate_manager_calendar` are now **enforced** in RLS and the service layer (`app_visible_user_ids`; grant on manager B covers B's whole branch; deny carves out of the grantee's own hierarchy and beats allow; read-only). 9 direct-RLS + 4 API tests in `tests/test_visibility_grants.py`. Decision recorded in `permissions.md` section 11.
+2. New `GET /permissions/me` returns the caller's own role defaults and active grants.
+3. `must_reset` is returned by login/`/auth/me` **and enforced server-side**: until the password is changed every endpoint except `/auth/me`, `/auth/change-password`, `/auth/logout` returns `403 password_change_required`.
+4. Text filters escape `%`/`_`/`\` (`app/services/search.py`) so they match literally.
 
 ## RLS enforcement on application traffic (Prompt 2 completion) - 2026-10-06
 

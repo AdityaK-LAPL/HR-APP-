@@ -16,6 +16,7 @@ from app.core.errors import AuthorizationError, NotFoundError, ValidationFailedE
 from app.models.identity import ManagerHierarchyClosure, User
 from app.schemas.principal import CurrentUser
 from app.services.audit_service import record_audit_log
+from app.services.permission_service import visible_user_ids
 
 
 async def reassign_manager(
@@ -75,10 +76,14 @@ async def get_hierarchy(
     else:
         effective_root = actor.id
 
-    stmt = (
-        select(User)
-        .join(ManagerHierarchyClosure, ManagerHierarchyClosure.descendant_id == User.id)
-        .where(ManagerHierarchyClosure.ancestor_id == effective_root)
-        .order_by(User.name)
-    )
+    if actor.role != "owner":
+        # Own subtree plus subtrees the Owner granted via view_manager_team (minus denies).
+        stmt = select(User).where(User.id.in_(visible_user_ids("team"))).order_by(User.name)
+    else:
+        stmt = (
+            select(User)
+            .join(ManagerHierarchyClosure, ManagerHierarchyClosure.descendant_id == User.id)
+            .where(ManagerHierarchyClosure.ancestor_id == effective_root)
+            .order_by(User.name)
+        )
     return list((await db.execute(stmt)).scalars().all())

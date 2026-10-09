@@ -64,6 +64,13 @@ class AuthorizationError(AppError):
     code = "forbidden"
 
 
+class PasswordChangeRequiredError(AppError):
+    """Account carries a temporary/admin-set password: only change-password is allowed."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    code = "password_change_required"
+
+
 class ConflictError(AppError):
     status_code = status.HTTP_409_CONFLICT
     code = "conflict"

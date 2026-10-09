@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthorizationError, NotFoundError, ValidationFailedError
 from app.models.identity import User
-from app.models.permission import PermissionDefinition, PermissionGrant
+from app.models.permission import PermissionDefinition, PermissionGrant, RolePermission
 from app.schemas.permission import PermissionGrantCreateRequest
 from app.schemas.principal import CurrentUser
 from app.services.audit_service import record_audit_log
@@ -114,3 +114,33 @@ async def revoke_grant(db: AsyncSession, *, actor: CurrentUser, grant_id: uuid.U
         entity_id=grant.id,
     )
     await db.flush()
+
+
+async def my_permissions(db: AsyncSession, *, actor: CurrentUser) -> dict:
+    defaults = (
+        await db.execute(
+            select(RolePermission)
+            .where(RolePermission.role == actor.role)
+            .order_by(RolePermission.permission_key)
+        )
+    ).scalars().all()
+    now = datetime.now(UTC)
+    grants = (
+        await db.execute(
+            select(PermissionGrant)
+            .where(
+                PermissionGrant.grantee_user_id == actor.id,
+                PermissionGrant.revoked_at.is_(None),
+                (PermissionGrant.expires_at.is_(None)) | (PermissionGrant.expires_at > now),
+            )
+            .order_by(PermissionGrant.permission_key, PermissionGrant.created_at)
+        )
+    ).scalars().all()
+    return {
+        "role": actor.role,
+        "unrestricted": actor.role == "owner",
+        "role_defaults": [
+            {"permission_key": d.permission_key, "allow": d.allow} for d in defaults
+        ],
+        "grants": list(grants),
+    }

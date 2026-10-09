@@ -51,3 +51,32 @@ class PermissionDefinitionResponse(BaseModel):
     key: str
     description: str | None
     applies_to_role: str
+
+
+class MyRoleDefault(BaseModel):
+    permission_key: str
+    allow: bool
+
+
+class MyGrant(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    permission_key: str
+    scope_type: str
+    scope_id: uuid.UUID | None
+    effect: str
+    expires_at: datetime | None
+
+
+class MyPermissionsResponse(BaseModel):
+    """The caller's own permission configuration, for permission-aware UI.
+
+    Display hints only - the server enforces every rule regardless. Evaluation order
+    is explicit deny > explicit allow > reporting hierarchy > role default
+    (docs/permissions.md section 5).
+    """
+
+    role: str
+    unrestricted: bool = Field(description="True for the Owner, who holds every permission.")
+    role_defaults: list[MyRoleDefault]
+    grants: list[MyGrant] = Field(description="The caller's active (unrevoked, unexpired) grants.")

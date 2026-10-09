@@ -16,6 +16,7 @@ from app.models.service import ServiceAssignment, ServiceCall
 from app.schemas.machine import MachineCreateRequest, MachineUpdateRequest
 from app.schemas.principal import CurrentUser
 from app.services.permission_service import in_scope
+from app.services.search import ESCAPE, like_pattern
 
 
 async def _get_machine(db: AsyncSession, machine_id: uuid.UUID) -> Machine:
@@ -126,9 +127,9 @@ async def list_machines(
     if customer_id is not None:
         stmt = stmt.where(Machine.customer_id == customer_id)
     if serial_number:
-        stmt = stmt.where(Machine.serial_number.ilike(f"%{serial_number}%"))
+        stmt = stmt.where(Machine.serial_number.ilike(like_pattern(serial_number), escape=ESCAPE))
     if model_name:
-        stmt = stmt.where(Machine.model_name.ilike(f"%{model_name}%"))
+        stmt = stmt.where(Machine.model_name.ilike(like_pattern(model_name), escape=ESCAPE))
 
     total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
     stmt = stmt.order_by(Machine.machine_code).offset((page - 1) * page_size).limit(page_size)

@@ -20,10 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AuthorizationError, ConflictError
 from app.models.attendance import AttendanceDay, AttendanceEvent
-from app.models.identity import ManagerHierarchyClosure, User
+from app.models.identity import User
 from app.schemas.attendance import PunchRequest
 from app.schemas.principal import CurrentUser
-from app.services.permission_service import in_scope
+from app.services.permission_service import can_view_user, visible_user_ids
 
 
 def _format_location(payload: PunchRequest) -> str | None:
@@ -119,10 +119,7 @@ async def list_attendance(
     stmt = select(AttendanceDay)
 
     if actor.role == "manager":
-        subtree_ids = select(ManagerHierarchyClosure.descendant_id).where(
-            ManagerHierarchyClosure.ancestor_id == actor.id
-        )
-        stmt = stmt.where(AttendanceDay.user_id.in_(subtree_ids))
+        stmt = stmt.where(AttendanceDay.user_id.in_(visible_user_ids("reports")))
     elif actor.role != "owner":
         stmt = stmt.where(AttendanceDay.user_id == actor.id)
 
@@ -146,7 +143,7 @@ async def list_attendance(
 async def get_events_for_day(
     db: AsyncSession, *, actor: CurrentUser, user_id: uuid.UUID, work_date: date
 ) -> list[AttendanceEvent]:
-    if actor.role != "owner" and user_id != actor.id and not await in_scope(db, actor, user_id):
+    if not await can_view_user(db, actor, user_id, "reports"):
         raise AuthorizationError("You do not have permission to view this user's attendance.")
 
     stmt = (

@@ -15,3 +15,4 @@ class CurrentUser:
     employee_code: str
     name: str
     role: str
+    must_reset: bool = False
