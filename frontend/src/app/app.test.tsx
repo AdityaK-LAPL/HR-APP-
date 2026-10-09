@@ -106,11 +106,11 @@ describe('signing in', () => {
     expect(await screen.findByRole('heading', { name: /hello, manny/i })).toBeInTheDocument()
   })
 
-  it('shows who the user reports to using the directory (works for an employee)', async () => {
-    mockSession(employee)
+  it('shows who the user reports to using the directory (names for ids)', async () => {
+    mockSession(manager) // reports to the owner; shown on the foundation dashboard
     renderApp('/dashboard')
-    expect(await screen.findByText('Manny Manager')).toBeInTheDocument()
-    expect(screen.getByText(/2026|Mar/)).toBeInTheDocument() // company day from /config
+    expect(await screen.findByText('Olivia Owner')).toBeInTheDocument()
+    expect(screen.getByText(/Mar 2026/)).toBeInTheDocument() // company day from /config
   })
 })
 
@@ -234,7 +234,7 @@ describe('session end', () => {
   it('returns to login with a notice when the session cannot be refreshed', async () => {
     mockSession(employee)
     server.use(
-      http.get(`${BASE}/users/directory`, () => apiError(401, 'authentication_failed', 'Not authenticated.')),
+      http.get(`${BASE}/tasks`, () => apiError(401, 'authentication_failed', 'Not authenticated.')),
       http.post(`${BASE}/auth/refresh`, () => apiError(401, 'authentication_failed', 'expired')),
     )
     renderApp('/dashboard')

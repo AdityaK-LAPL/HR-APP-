@@ -38,3 +38,39 @@ describe('company-timezone dates', () => {
     expect(formatTime(undefined)).toBe('')
   })
 })
+
+import { formatDuration, inclusiveDays, shiftDate } from './dates'
+
+describe('date arithmetic helpers', () => {
+  it('formats durations', () => {
+    expect(formatDuration(485)).toBe('8h 05m')
+    expect(formatDuration(45)).toBe('45m')
+    expect(formatDuration(0)).toBe('0m')
+    expect(formatDuration(null)).toBe('')
+  })
+  it('counts inclusive days across month ends', () => {
+    expect(inclusiveDays('2026-03-05', '2026-03-05')).toBe(1)
+    expect(inclusiveDays('2026-02-27', '2026-03-02')).toBe(4)
+  })
+  it('shifts calendar dates', () => {
+    expect(shiftDate('2026-03-01', -1)).toBe('2026-02-28')
+    expect(shiftDate('2026-12-31', 1)).toBe('2027-01-01')
+  })
+})
+
+import { companyLocalToIso, isoToCompanyLocal } from './dates'
+
+describe('company-local <-> UTC conversion for datetime-local inputs', () => {
+  it('treats typed times as IST', () => {
+    expect(companyLocalToIso('2026-03-05T09:30')).toBe('2026-03-05T04:00:00.000Z')
+    expect(companyLocalToIso('2026-03-05T00:15')).toBe('2026-03-04T18:45:00.000Z')
+  })
+  it('round-trips', () => {
+    expect(isoToCompanyLocal('2026-03-05T04:00:00.000Z')).toBe('2026-03-05T09:30')
+    expect(isoToCompanyLocal(companyLocalToIso('2026-12-31T23:59'))).toBe('2026-12-31T23:59')
+  })
+  it('ignores empty or invalid input', () => {
+    expect(companyLocalToIso('')).toBe('')
+    expect(isoToCompanyLocal(null)).toBe('')
+  })
+})

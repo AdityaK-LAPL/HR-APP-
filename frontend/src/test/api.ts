@@ -1,6 +1,7 @@
 import { HttpResponse, http } from 'msw'
 import type { UserProfile } from '@/api/types'
 import { server } from './server'
+import { mockEmployeeData } from './fixtures'
 
 export const BASE = 'http://localhost/api/v1'
 
@@ -52,6 +53,7 @@ export function mockConfig() {
 /** Cookies are not modelled: `signedInAs` controls what /auth/me answers. */
 export function mockSession(user: UserProfile | null) {
   mockConfig()
+  mockEmployeeData()
   server.use(
     http.get(`${BASE}/auth/me`, () =>
       user ? HttpResponse.json(user) : apiError(401, 'authentication_failed', 'Not authenticated.'),

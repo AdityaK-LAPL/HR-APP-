@@ -1,4 +1,4 @@
-import { ChevronDown, KeyRound, LogOut } from 'lucide-react'
+import { ChevronDown, KeyRound, LogOut, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authContext'
@@ -61,6 +61,9 @@ export function UserMenu() {
             {user.employee_code}
             {user.designation ? ` · ${user.designation}` : ''}
           </div>
+          <Link to="/profile" role="menuitem" className="menu-item" onClick={() => setOpen(false)}>
+            <UserRound size={16} aria-hidden="true" /> My profile
+          </Link>
           <Link to="/change-password" role="menuitem" className="menu-item" onClick={() => setOpen(false)}>
             <KeyRound size={16} aria-hidden="true" /> Change password
           </Link>
