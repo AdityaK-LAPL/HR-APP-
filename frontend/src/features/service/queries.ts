@@ -17,6 +17,8 @@ export type Machine = Schema<'MachineResponse'>
 export interface CallFilters {
   status?: string
   service_call_code?: string
+  customer_id?: string
+  machine_id?: string
   page: number
   page_size: number
 }
@@ -153,5 +155,38 @@ export function useSubmitReport(callId: string) {
   return useMutation({
     mutationFn: (input: ReportInput) => api.post<ServiceReport>(`/service-calls/${callId}/report`, input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: callKeys.reports(callId) }),
+  })
+}
+
+export interface CustomerFilters {
+  name?: string
+  customer_code?: string
+  page: number
+  page_size: number
+}
+
+export function useCustomers(filters: CustomerFilters) {
+  return useQuery({
+    queryKey: ['customers', 'list', filters],
+    queryFn: ({ signal }) =>
+      api.get<Schema<'CustomerListResponse'>>('/customers', { query: { ...filters }, signal }),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export interface MachineFilters {
+  customer_id?: string
+  model_name?: string
+  serial_number?: string
+  page: number
+  page_size: number
+}
+
+export function useMachines(filters: MachineFilters) {
+  return useQuery({
+    queryKey: ['machines', 'list', filters],
+    queryFn: ({ signal }) =>
+      api.get<Schema<'MachineListResponse'>>('/machines', { query: { ...filters }, signal }),
+    placeholderData: keepPreviousData,
   })
 }

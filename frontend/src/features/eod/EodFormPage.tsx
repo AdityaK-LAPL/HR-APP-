@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/components/feedback/toastContext'
+import { useUnsavedChangesGuard } from '@/components/feedback/useUnsavedChangesGuard'
 import { Alert } from '@/components/ui/Alert'
 import { BackLink } from '@/components/ui/BackLink'
 import { Button } from '@/components/ui/Button'
@@ -37,11 +38,12 @@ export function EodFormPage() {
     handleSubmit,
     setError,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<EodForm>({
     defaultValues: { report_date: today, project_id: '', task_id: '', work_completed: '', work_remaining: '', issues: '', notes: '' },
   })
 
+  const { dialog: leaveDialog, allowLeave } = useUnsavedChangesGuard(isDirty)
   const reportDate = useWatch({ control, name: 'report_date' })
   const projects = useProjects({ page: 1, page_size: 100 })
   // Offer the tasks planned for the day being reported.
@@ -62,6 +64,7 @@ export function EodFormPage() {
       {
         onSuccess: (report) => {
           toast.success('End-of-day report submitted.')
+          allowLeave()
           void navigate(`/eod/${report.id}`, { replace: true })
         },
         onError: (error) => setFormError(applyApiError(error, setError, FIELDS)),
@@ -127,6 +130,7 @@ export function EodFormPage() {
           </div>
         </Section>
       </form>
+      {leaveDialog}
     </section>
   )
 }

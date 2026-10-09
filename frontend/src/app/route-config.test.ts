@@ -15,6 +15,14 @@ describe('route config', () => {
     expect(paths('employee')).not.toContain('audit-logs')
   })
 
+  it('lets employees reach the assignment-scoped customers and machines screens', () => {
+    const employeePaths = routesForRole('employee').map((r) => r.path)
+    expect(employeePaths).toEqual(expect.arrayContaining(['customers', 'machines']))
+    const customers = ROUTES.find((r) => r.path === 'customers')!
+    expect(routeLabel(customers, 'employee')).toBe('My customers')
+    expect(routeLabel(customers, 'owner')).toBe('Customers')
+  })
+
   it('gives every role a dashboard and at most four phone tabs, with Home first', () => {
     for (const role of ALL_ROLES) {
       const bar = mobileBarForRole(role)

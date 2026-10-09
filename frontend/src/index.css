@@ -21,11 +21,12 @@
   /* Typography Colors */
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-muted: #8593a8; /* >= 4.5:1 on every surface (WCAG AA) */
   --text-disabled: #475569;
 
   /* Brand Accents */
   --primary: #2563eb;
+  --link: #60a5fa; /* text-link blue: >= 4.5:1 on cards (the primary blue is for fills) */
   --primary-hover: #1d4ed8;
   --primary-light: rgba(37, 99, 235, 0.15);
   --primary-border: rgba(59, 130, 246, 0.35);
@@ -144,12 +145,19 @@ p {
 }
 
 a {
-  color: var(--primary);
+  color: var(--link);
   text-decoration: none;
   transition: color 0.15s ease;
 }
 a:hover {
-  color: #60a5fa;
+  color: #93c5fd;
+}
+
+/* Links that sit inside running text must not rely on colour alone (WCAG 1.4.1). */
+.inline-link,
+.prose a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* Form & Input Reset */
@@ -282,7 +290,7 @@ button {
 }
 
 .mobile-nav-item.active {
-  color: var(--primary);
+  color: var(--link);
 }
 
 .mobile-nav-item:active {

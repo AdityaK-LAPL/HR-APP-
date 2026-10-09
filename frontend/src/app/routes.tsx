@@ -21,6 +21,8 @@ const EMPLOYEE_SCREENS: Record<string, React.ReactNode> = {
   eod: <Screen.EodListPage />,
   projects: <Screen.ProjectsPage />,
   service: <Screen.ServiceListPage />,
+  customers: <Screen.CustomersPage />,
+  machines: <Screen.MachinesPage />,
 }
 
 const moduleRoutes: RouteObject[] = ROUTES.map((spec) => ({
@@ -49,6 +51,8 @@ const detailRoutes: RouteObject[] = [
   employeeOnly('eod/new', 'New EOD report', <Screen.EodFormPage />),
   employeeOnly('eod/:id', 'EOD report', <Screen.EodDetailPage />),
   employeeOnly('service/:id', 'Service call', <Screen.ServiceDetailPage />),
+  employeeOnly('customers/:id', 'Customer', <Screen.CustomerDetailPage />),
+  employeeOnly('machines/:id', 'Machine', <Screen.MachineDetailPage />),
   {
     path: 'profile',
     handle: handle('My profile'),

@@ -83,4 +83,54 @@ describe('EOD reports', () => {
     expect(await screen.findByRole('option', { name: 'Calibrate press line 3' })).toBeInTheDocument()
     expect(seen.seen.at(-1)?.url.searchParams.get('task_date')).toBe('2026-03-05')
   })
+  describe('unsaved changes', () => {
+    function open() {
+      mockSession(employee)
+      server.use(http.get(`${BASE}/eod`, () => HttpResponse.json(list([]))))
+      renderApp('/eod/new')
+    }
+
+    it('asks before abandoning typed text, and keeps the form if the user stays', async () => {
+      open()
+      const user = userEvent.setup()
+      await user.type(await screen.findByLabelText(/work completed/i), 'Half-written')
+      await user.click(screen.getByRole('link', { name: 'All reports' }))
+      expect(await screen.findByRole('heading', { name: 'Leave without saving?' })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Keep editing' }))
+      expect(screen.queryByRole('heading', { name: 'Leave without saving?' })).not.toBeInTheDocument()
+      expect(screen.getByLabelText(/work completed/i)).toHaveValue('Half-written')
+    })
+
+    it('leaves when the user confirms', async () => {
+      open()
+      const user = userEvent.setup()
+      await user.type(await screen.findByLabelText(/work completed/i), 'Half-written')
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      await user.click(await screen.findByRole('button', { name: 'Leave page' }))
+      expect(await screen.findByRole('heading', { level: 1, name: /End-of-day reports|My reports|EOD/i })).toBeInTheDocument()
+    })
+
+    it('does not interrupt a form nobody has touched', async () => {
+      open()
+      const user = userEvent.setup()
+      await screen.findByLabelText(/work completed/i)
+      await user.click(screen.getByRole('link', { name: 'All reports' }))
+      expect(screen.queryByRole('heading', { name: 'Leave without saving?' })).not.toBeInTheDocument()
+      expect(await screen.findByRole('heading', { level: 1 })).not.toHaveTextContent('Submit end-of-day report')
+    })
+
+    it('registers a browser prompt only while there are unsaved changes', async () => {
+      open()
+      const user = userEvent.setup()
+      const prevented = () => {
+        const event = new Event('beforeunload', { cancelable: true })
+        window.dispatchEvent(event)
+        return event.defaultPrevented
+      }
+      await screen.findByLabelText(/work completed/i)
+      expect(prevented()).toBe(false)
+      await user.type(screen.getByLabelText(/work completed/i), 'x')
+      expect(prevented()).toBe(true)
+    })
+  })
 })
