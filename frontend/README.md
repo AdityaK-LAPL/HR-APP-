@@ -5,9 +5,9 @@ The API it consumes is documented in [`docs/api-contract.md`](../docs/api-contra
 [`docs/openapi.json`](../docs/openapi.json). The backend is authoritative: the frontend holds no business rules, has no
 mock mode, and never touches the database.
 
-> Status: foundation + authentication (Prompt 6), the **Employee experience (Prompt 7)** and the **Manager experience
-> (Prompt 8)** are real. Owner screens, full service management, reports and PWA polish are labelled placeholders until
-> Prompts 9-13.
+> Status: foundation + authentication (Prompt 6), the **Employee (7)**, **Manager (8)** and **Owner administration (9)**
+> experiences are real. Full service management, dashboards/reports polish, notifications and PWA polish arrive in
+> Prompts 10-13.
 
 ## Commands
 

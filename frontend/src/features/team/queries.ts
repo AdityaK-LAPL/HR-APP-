@@ -70,19 +70,26 @@ export function useWorkload() {
   })
 }
 
-export function useTaskSummary() {
+export function useTaskSummary(projectId?: string) {
   return useQuery({
-    queryKey: ['reports', 'tasks'],
-    queryFn: ({ signal }) => api.get<Schema<'TaskReportResponse'>>('/reports/tasks', { signal }),
+    queryKey: ['reports', 'tasks', projectId ?? null],
+    queryFn: ({ signal }) =>
+      api.get<Schema<'TaskReportResponse'>>('/reports/tasks', {
+        query: projectId ? { project_id: projectId } : {},
+        signal,
+      }),
     staleTime: 30_000,
   })
 }
 
-export function useServiceSummary() {
+export function useServiceSummary(managerId?: string) {
   return useQuery({
-    queryKey: ['reports', 'service-activity'],
+    queryKey: ['reports', 'service-activity', managerId ?? null],
     queryFn: ({ signal }) =>
-      api.get<Schema<'ServiceActivityReportResponse'>>('/reports/service-activity', { signal }),
+      api.get<Schema<'ServiceActivityReportResponse'>>('/reports/service-activity', {
+        query: managerId ? { manager_id: managerId } : {},
+        signal,
+      }),
     staleTime: 30_000,
   })
 }
@@ -112,32 +119,57 @@ export function useVisiblePeopleOptions() {
 }
 
 /**
- * People a task can be assigned to: the manager, their reporting subtree, and other managers the
+ * The people the caller may put on work: a Manager gets themself and their reporting subtree; the
+ * Owner gets every active person (the first 100, name order). Options only - the server decides.
+ */
+export function useTeamOptions() {
+  const { user } = useAuth()
+  const subtree = useSubtree()
+  const everyone = useVisibleUsers({ is_active: true, page: 1, page_size: 100 }, user?.role === 'owner')
+
+  const options = useMemo(() => {
+    if (!user) return []
+    const people = new Map<string, PersonOption>()
+    if (user.role === 'owner') {
+      for (const person of everyone.data?.items ?? []) {
+        people.set(person.id, { value: person.id, label: personLabel(person, person.id === user.id ? ' (you)' : '') })
+      }
+      return [...people.values()]
+    }
+    people.set(user.id, { value: user.id, label: personLabel(user, ' (you)') })
+    for (const person of subtree.people) {
+      if (person.is_active) people.set(person.id, { value: person.id, label: personLabel(person) })
+    }
+    return [...people.values()]
+  }, [user, subtree.people, everyone.data])
+
+  return { options, isLoading: user?.role === 'owner' ? everyone.isLoading : subtree.isLoading }
+}
+
+/**
+ * People a task can be assigned to: `useTeamOptions` plus, for a Manager, other managers the
  * Owner has explicitly allowed (`assign_tasks_to_manager`, one grant per target manager).
  * The server re-checks every assignment.
  */
 export function useAssignableUsers() {
   const { user } = useAuth()
   const can = useCan()
-  const subtree = useSubtree()
-  const managers = useVisibleUsers({ role: 'manager', is_active: true, page: 1, page_size: 100 })
+  const team = useTeamOptions()
+  const managers = useVisibleUsers({ role: 'manager', is_active: true, page: 1, page_size: 100 }, user?.role === 'manager')
 
   const options = useMemo(() => {
-    if (!user) return []
-    const people = new Map<string, PersonOption>()
-    people.set(user.id, { value: user.id, label: personLabel(user, ' (you)') })
-    for (const person of subtree.people) {
-      if (person.is_active) people.set(person.id, { value: person.id, label: personLabel(person) })
-    }
-    for (const person of managers.data?.items ?? []) {
-      if (!people.has(person.id) && can('assign_tasks_to_manager', { type: 'user', id: person.id })) {
-        people.set(person.id, { value: person.id, label: personLabel(person) })
+    const people = new Map<string, PersonOption>(team.options.map((option) => [option.value, option]))
+    if (user?.role === 'manager') {
+      for (const person of managers.data?.items ?? []) {
+        if (!people.has(person.id) && can('assign_tasks_to_manager', { type: 'user', id: person.id })) {
+          people.set(person.id, { value: person.id, label: personLabel(person) })
+        }
       }
     }
     return [...people.values()]
-  }, [user, subtree.people, managers.data, can])
+  }, [user, team.options, managers.data, can])
 
-  return { options, isLoading: subtree.isLoading }
+  return { options, isLoading: team.isLoading }
 }
 
 export function useUpdatePerson() {

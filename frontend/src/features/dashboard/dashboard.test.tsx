@@ -32,10 +32,11 @@ describe('Employee dashboard', () => {
 })
 
 describe('Roles', () => {
-  it('keeps the owner on placeholders (the owner screens come in Prompt 9)', async () => {
+  it('gives the owner company-wide screens, not placeholders or the employee ones', async () => {
     mockSession(owner)
     renderApp('/tasks')
-    expect(await screen.findByText('Not built yet')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Company tasks' })).toBeInTheDocument()
+    expect(screen.queryByText('Not built yet')).not.toBeInTheDocument()
     expect(screen.queryByText('No tasks assigned to you')).not.toBeInTheDocument()
   })
 
@@ -46,9 +47,9 @@ describe('Roles', () => {
     expect(screen.queryByText('Not built yet')).not.toBeInTheDocument()
   })
 
-  it('does not expose employee detail screens to other roles', async () => {
+  it('does not offer the owner a personal EOD form (the owner reads everyone\'s reports)', async () => {
     mockSession(owner)
-    renderApp('/tasks/t-1')
+    renderApp('/eod/new')
     expect(await screen.findByRole('heading', { name: 'Not available' })).toBeInTheDocument()
   })
 

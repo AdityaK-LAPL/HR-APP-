@@ -107,6 +107,10 @@ export function mockManagerData() {
     http.get(`${BASE}/hierarchy`, () => HttpResponse.json([])),
     http.get(`${BASE}/calendar`, () => HttpResponse.json({ items: [] })),
     http.get(`${BASE}/reports/workload`, () => HttpResponse.json([])),
+    http.get(`${BASE}/reports/attendance`, () => HttpResponse.json([])),
+    http.get(`${BASE}/permissions/grants`, () => HttpResponse.json([])),
+    http.get(`${BASE}/permissions/definitions`, () => HttpResponse.json([])),
+    http.get(`${BASE}/audit-logs`, () => HttpResponse.json(list([]))),
     http.get(`${BASE}/reports/tasks`, () => HttpResponse.json({ by_status: [], total: 0 })),
     http.get(`${BASE}/reports/leave`, () => HttpResponse.json({ by_status: [], total: 0 })),
     http.get(`${BASE}/reports/service-activity`, () =>

@@ -208,3 +208,7 @@ These are API facts, not frontend bugs. Each is small and additive; none is buil
 
 Route table: `SCREENS[path] = {employee?, manager?}` in `app/routes.tsx`; `ByRole` picks by role and falls back to the placeholder / "Not available". A screen is shared between roles when it adapts itself from facts on the record (task detail, project detail, service detail) and split when the experience differs (dashboard, tasks, leave, EOD list, attendance). Permission-aware controls combine record facts (approver, owner, assigner, assignee, `useSubtree`) with `useCan()` over `/permissions/me`; the server stays authoritative and its refusal text is displayed.
 
+## Appendix: owner phase notes (Prompt 9)
+
+The Owner reuses the manager screens company-wide (the API already returns everything for the Owner; screens differ only in wording and in hiding personal punch/leave/EOD views) plus `features/admin/*`: `permissionCatalog.ts` is the single place that says which permissions exist in the UI, what scope each takes and whether deny means anything - it mirrors `has_permission` / `app_visible_user_ids` and must be updated together with them. Refresh-token rotation is serialised across tabs in `api/client.ts` (Web Locks + one retry of the original request).
+

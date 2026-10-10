@@ -144,7 +144,7 @@ export function TaskDetailPage() {
         return (
         <section>
           <PageHeader
-            back={<BackLink to="/tasks">{user?.role === 'employee' ? 'All tasks' : 'Team tasks'}</BackLink>}
+            back={<BackLink to="/tasks">{user?.role === 'employee' ? 'All tasks' : user?.role === 'owner' ? 'Company tasks' : 'Team tasks'}</BackLink>}
             title={data.title}
             description={data.description ?? undefined}
             actions={

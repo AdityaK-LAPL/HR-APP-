@@ -30,7 +30,8 @@ export function TeamAttendancePage() {
   const { user } = useAuth()
   const today = useCompanyToday()
   const [params, setParams] = useUrlParams({ view: 'team', from: '', to: '', person: '', page: '1' })
-  const mine = params.view === 'mine'
+  const isOwner = user?.role === 'owner'
+  const mine = !isOwner && params.view === 'mine'
   const page = pageNumber(params.page)
   const from = params.from || today
   // An end before the start would ask the API for an impossible range; treat it as a single day.
@@ -73,8 +74,9 @@ export function TeamAttendancePage() {
     <section>
       <PageHeader
         title="Attendance"
-        description={mine ? 'Punch in and out, and review your own attendance.' : 'See who has punched in across your team.'}
+        description={mine ? 'Punch in and out, and review your own attendance.' : isOwner ? 'See who has punched in across the company.' : 'See who has punched in across your team.'}
       />
+      {!isOwner && (
       <SegmentedControl
         label="Attendance view"
         value={mine ? 'mine' : 'team'}
@@ -84,6 +86,7 @@ export function TeamAttendancePage() {
           { value: 'mine', label: 'My attendance' },
         ]}
       />
+      )}
       {mine ? (
         <MyAttendance />
       ) : (
@@ -111,7 +114,7 @@ export function TeamAttendancePage() {
               <EmptyState
                 icon={<History size={24} />}
                 title="No attendance records"
-                description={from === today && to === today ? 'Nobody in your team has punched in yet today.' : 'No one punched in during this period.'}
+                description={from === today && to === today ? (isOwner ? 'Nobody has punched in yet today.' : 'Nobody in your team has punched in yet today.') : 'No one punched in during this period.'}
               />
             }
           >

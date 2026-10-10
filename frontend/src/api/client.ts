@@ -5,8 +5,11 @@
  *   JavaScript never sees a token.
  * - CSRF: mutating requests echo the readable `csrf_token` cookie in `X-CSRF-Token`.
  * - 401 -> ONE shared `POST /auth/refresh` (single-flight so parallel requests don't rotate the
- *   refresh token twice), then the original request is retried once. If refresh fails the
- *   registered session-expired handler runs (AuthProvider sends the user to the login page).
+ *   refresh token twice - within a tab, and across tabs through the Web Locks API where available),
+ *   then the original request is retried once. The retry also happens when the refresh itself was
+ *   refused: another tab may have rotated the cookie a moment earlier, in which case the request
+ *   now succeeds. Only a request that is still 401 runs the registered session-expired handler
+ *   (AuthProvider sends the user to the login page).
  * - Failures become `ApiError`; a request that never reaches the server is `status 0`.
  */
 
@@ -56,14 +59,25 @@ export function buildUrl(path: string, query?: Query): string {
 
 let refreshInFlight: Promise<boolean> | null = null
 
-/** One refresh at a time; every concurrent 401 awaits the same promise. */
+async function callRefresh(): Promise<boolean> {
+  try {
+    await send('POST', '/auth/refresh', { skipRefresh: true })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * One refresh at a time; every concurrent 401 awaits the same promise. The refresh token rotates
+ * on use, so two tabs refreshing with the same cookie at once would make the second fail and sign
+ * the user out - the lock makes the second tab wait and then use the cookie the first one set.
+ */
 export function refreshSession(): Promise<boolean> {
   refreshInFlight ??= (async () => {
     try {
-      await send('POST', '/auth/refresh', { skipRefresh: true })
-      return true
-    } catch {
-      return false
+      const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
+      return locks ? await locks.request('opsflow-session-refresh', callRefresh) : await callRefresh()
     } finally {
       refreshInFlight = null
     }
@@ -119,9 +133,9 @@ export async function request<T>(
   let response = await send(method, path, options)
 
   if (response.status === 401 && !options.skipRefresh) {
-    if (await refreshSession()) {
-      response = await send(method, path, options)
-    }
+    // Retry even if our own refresh was refused: another tab may have rotated the cookie first.
+    await refreshSession()
+    response = await send(method, path, options)
     if (response.status === 401) {
       onSessionExpired?.()
     }

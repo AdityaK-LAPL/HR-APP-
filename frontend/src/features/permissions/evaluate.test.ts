@@ -48,8 +48,9 @@ describe('evaluatePermission (UX hint only)', () => {
     }
     expect(evaluatePermission(p, 'create_project')).toBe(false)
   })
-  it('a global grant applies to any scope', () => {
+  it('a global grant applies only to a global question, as on the server (not to a project or user scope)', () => {
     const p = { ...base, grants: [grant({ scope_type: 'global', scope_id: null })] }
-    expect(evaluatePermission(p, 'modify_project', { type: 'project', id: 'anything' })).toBe(true)
+    expect(evaluatePermission(p, 'modify_project')).toBe(true)
+    expect(evaluatePermission(p, 'modify_project', { type: 'project', id: 'anything' })).toBe(false)
   })
 })

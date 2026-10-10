@@ -1,9 +1,10 @@
-import { Users } from 'lucide-react'
+import { Plus, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { QueryBoundary } from '@/components/data/QueryBoundary'
 import { Pagination } from '@/components/data/Pagination'
 import { RecordList, type Column } from '@/components/data/RecordList'
+import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -14,8 +15,9 @@ import { usePeople } from '@/features/people/usePeople'
 import { labelOfRole } from '@/features/profile/roles'
 import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import { pageNumber, useUrlParams } from '@/lib/useUrlParams'
+import { CreateUserDialog } from '@/features/admin/CreateUserDialog'
 import { OrgStructure } from './OrgStructure'
-import { useVisibleUsers, useWorkload, type Person } from './queries'
+import { personLabel, useVisibleUsers, useWorkload, type Person } from './queries'
 
 const PAGE_SIZE = 20
 
@@ -26,7 +28,10 @@ function ActiveBadge({ active }: { active: boolean }) {
 /** The people the manager can see: their team, with workload, plus the reporting structure. */
 export function TeamPage() {
   const { user } = useAuth()
-  const [params, setParams] = useUrlParams({ view: 'people', q: '', role: '', state: 'active', page: '1' })
+  const isOwner = user?.role === 'owner'
+  const [params, setParams] = useUrlParams({ view: 'people', q: '', role: '', state: 'active', manager: '', page: '1' })
+  const [creating, setCreating] = useState(false)
+  const managers = useVisibleUsers({ is_active: true, page: 1, page_size: 100 }, isOwner && params.view !== 'structure')
   const [searchInput, setSearchInput] = useState(params.q)
   const search = useDebouncedValue(searchInput.trim())
   const page = pageNumber(params.page)
@@ -36,6 +41,7 @@ export function TeamPage() {
     {
       ...(search ? { search } : {}),
       ...(params.role ? { role: params.role } : {}),
+      ...(isOwner && params.manager ? { manager_id: params.manager } : {}),
       ...(params.state !== 'all' ? { is_active: params.state === 'active' } : {}),
       page,
       page_size: PAGE_SIZE,
@@ -45,7 +51,7 @@ export function TeamPage() {
   const workload = useWorkload()
   const load = new Map((workload.data ?? []).map((row) => [row.user_id, row]))
   const { nameOf } = usePeople((query.data?.items ?? []).map((person) => person.manager_id))
-  const filtered = Boolean(search || params.role || params.state !== 'active')
+  const filtered = Boolean(search || params.role || params.manager || params.state !== 'active')
 
   const columns: Column<Person>[] = [
     {
@@ -70,7 +76,17 @@ export function TeamPage() {
 
   return (
     <section>
-      <PageHeader title="My team" description="The people you manage, what they are working on, and how they report." />
+      <PageHeader
+        title={isOwner ? 'Users & hierarchy' : 'My team'}
+        description={isOwner ? 'Everyone in the company: roles, status, and who reports to whom.' : 'The people you manage, what they are working on, and how they report.'}
+        actions={
+          isOwner ? (
+            <Button icon={<Plus size={18} />} onClick={() => setCreating(true)}>
+              Add a person
+            </Button>
+          ) : undefined
+        }
+      />
       <SegmentedControl
         label="Team view"
         value={structure ? 'structure' : 'people'}
@@ -104,6 +120,15 @@ export function TeamPage() {
               ]}
               placeholder="All roles"
             />
+            {isOwner && (
+              <Select
+                label="Reports to"
+                value={params.manager}
+                onChange={(event) => setParams({ manager: event.target.value })}
+                options={(managers.data?.items ?? []).filter((person) => person.role !== 'employee').map((person) => ({ value: person.id, label: personLabel(person) }))}
+                placeholder="Anyone"
+              />
+            )}
             <Select
               label="Status"
               value={params.state}
@@ -121,8 +146,8 @@ export function TeamPage() {
             empty={
               <EmptyState
                 icon={<Users size={24} />}
-                title={filtered ? 'No one matches' : 'No one reports to you yet'}
-                description={filtered ? 'Try different filters.' : 'People assigned to you by the Owner appear here.'}
+                title={filtered ? 'No one matches' : isOwner ? 'No people yet' : 'No one reports to you yet'}
+                description={filtered ? 'Try different filters.' : isOwner ? 'Use “Add a person” to create the first account.' : 'People assigned to you by the Owner appear here.'}
               />
             }
           >
@@ -138,6 +163,7 @@ export function TeamPage() {
           </p>
         </>
       )}
+      {isOwner && creating && <CreateUserDialog open onClose={() => setCreating(false)} defaultManager={params.manager || undefined} />}
     </section>
   )
 }

@@ -15,26 +15,30 @@ const handle = (title: string): RouteHandle => ({ title })
 
 type RoleScreens = Partial<Record<Role, React.ReactNode>>
 
-/** The same screen for employees and managers (the screen itself adapts to the role). */
-const staff = (screen: React.ReactNode): RoleScreens => ({ employee: screen, manager: screen })
+/** The same screen for every signed-in role (the screen itself adapts to the role). */
+const everyone = (screen: React.ReactNode): RoleScreens => ({ employee: screen, manager: screen, owner: screen })
 
 /**
- * Screens by path and role. Employee screens shipped in Prompt 7, manager screens in Prompt 8;
- * the Owner keeps the placeholders until Prompt 9. Which role sees a route is a display hint -
- * the API answers 403/404 for anything the caller may not do.
+ * Screens by path and role. Employee screens shipped in Prompt 7, manager screens in Prompt 8 and
+ * the Owner's in Prompt 9 (the Owner reuses the manager screens company-wide plus the administration
+ * screens). Which role sees a route is a display hint - the API answers 403/404 for anything the
+ * caller may not do.
  */
 const SCREENS: Record<string, RoleScreens> = {
-  dashboard: { employee: <Screen.EmployeeDashboard />, manager: <Screen.ManagerDashboard /> },
-  tasks: { employee: <Screen.TasksPage />, manager: <Screen.TeamTasksPage /> },
-  attendance: { employee: <Screen.AttendancePage />, manager: <Screen.TeamAttendancePage /> },
-  leaves: { employee: <Screen.LeavePage />, manager: <Screen.ManagerLeavePage /> },
-  eod: { employee: <Screen.EodListPage />, manager: <Screen.ManagerEodPage /> },
-  projects: staff(<Screen.ProjectsPage />),
-  service: staff(<Screen.ServiceListPage />),
-  customers: staff(<Screen.CustomersPage />),
-  machines: staff(<Screen.MachinesPage />),
-  calendar: { manager: <Screen.CalendarPage /> },
-  users: { manager: <Screen.TeamPage /> },
+  dashboard: { employee: <Screen.EmployeeDashboard />, manager: <Screen.ManagerDashboard />, owner: <Screen.OwnerDashboard /> },
+  tasks: { employee: <Screen.TasksPage />, manager: <Screen.TeamTasksPage />, owner: <Screen.TeamTasksPage /> },
+  attendance: { employee: <Screen.AttendancePage />, manager: <Screen.TeamAttendancePage />, owner: <Screen.TeamAttendancePage /> },
+  leaves: { employee: <Screen.LeavePage />, manager: <Screen.ManagerLeavePage />, owner: <Screen.ManagerLeavePage /> },
+  eod: { employee: <Screen.EodListPage />, manager: <Screen.ManagerEodPage />, owner: <Screen.ManagerEodPage /> },
+  projects: everyone(<Screen.ProjectsPage />),
+  service: everyone(<Screen.ServiceListPage />),
+  customers: everyone(<Screen.CustomersPage />),
+  machines: everyone(<Screen.MachinesPage />),
+  calendar: { manager: <Screen.CalendarPage />, owner: <Screen.CalendarPage /> },
+  users: { manager: <Screen.TeamPage />, owner: <Screen.TeamPage /> },
+  reports: { owner: <Screen.ReportsPage /> },
+  permissions: { owner: <Screen.PermissionsPage /> },
+  'audit-logs': { owner: <Screen.AuditLogsPage /> },
 }
 
 const moduleRoutes: RouteObject[] = ROUTES.map((spec) => ({
@@ -58,18 +62,18 @@ const roleRoute = (path: string, title: string, screens: RoleScreens): RouteObje
 })
 
 const detailRoutes: RouteObject[] = [
-  roleRoute('tasks/:id', 'Task', staff(<Screen.TaskDetailPage />)),
-  roleRoute('projects/:id', 'Project', staff(<Screen.ProjectDetailPage />)),
-  roleRoute('eod/new', 'New EOD report', staff(<Screen.EodFormPage />)),
-  roleRoute('eod/:id', 'EOD report', staff(<Screen.EodDetailPage />)),
-  roleRoute('service/:id', 'Service call', staff(<Screen.ServiceDetailPage />)),
-  roleRoute('customers/:id', 'Customer', staff(<Screen.CustomerDetailPage />)),
-  roleRoute('machines/:id', 'Machine', staff(<Screen.MachineDetailPage />)),
-  roleRoute('users/:id', 'Person', { manager: <Screen.PersonPage /> }),
+  roleRoute('tasks/:id', 'Task', everyone(<Screen.TaskDetailPage />)),
+  roleRoute('projects/:id', 'Project', everyone(<Screen.ProjectDetailPage />)),
+  roleRoute('eod/new', 'New EOD report', { employee: <Screen.EodFormPage />, manager: <Screen.EodFormPage /> }),
+  roleRoute('eod/:id', 'EOD report', everyone(<Screen.EodDetailPage />)),
+  roleRoute('service/:id', 'Service call', everyone(<Screen.ServiceDetailPage />)),
+  roleRoute('customers/:id', 'Customer', everyone(<Screen.CustomerDetailPage />)),
+  roleRoute('machines/:id', 'Machine', everyone(<Screen.MachineDetailPage />)),
+  roleRoute('users/:id', 'Person', { manager: <Screen.PersonPage />, owner: <Screen.PersonPage /> }),
   {
     path: 'notifications',
     handle: handle('Notifications'),
-    element: <ByRole screens={{ employee: <Screen.NotificationsPage />, manager: <Screen.NotificationsPage /> }} fallback={<NotAvailablePage />} />,
+    element: <ByRole screens={everyone(<Screen.NotificationsPage />)} fallback={<NotAvailablePage />} />,
   },
   {
     path: 'profile',

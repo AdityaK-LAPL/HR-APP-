@@ -22,6 +22,9 @@ import { addDays } from '@/lib/calendar'
 import { formatDate, formatDuration, formatTime, inclusiveDays } from '@/lib/dates'
 import { ATTENDANCE_STATUS, LEAVE_STATUS, SERVICE_STATUS, TASK_STATUS } from '@/lib/labels'
 import { EditPersonDialog } from './EditPersonDialog'
+import { OwnerPersonActions } from '@/features/admin/PersonAdmin'
+import { permissionLabel } from '@/features/admin/permissionCatalog'
+import { useGrants } from '@/features/admin/queries'
 import { ResetPasswordDialog } from './ResetPasswordDialog'
 import { useAssignableUsers, usePerson, useSubtree, useVisibleUsers } from './queries'
 
@@ -74,19 +77,21 @@ export function PersonPage() {
   const attendance = useTeamAttendance({ user_id: id, start_date: addDays(today, -6), end_date: today, page: 1, page_size: 7 })
   const calls = useServiceCalls({ employee_id: id, page: 1, page_size: 5 })
   const reports = useVisibleUsers({ manager_id: id, page: 1, page_size: 50 })
-  const { nameOf } = usePeople([person.data?.manager_id])
+  const isOwner = user?.role === 'owner'
+  const grants = useGrants({ grantee_user_id: id }, isOwner && person.data?.role === 'manager')
+  const { nameOf } = usePeople([person.data?.manager_id, ...(grants.data ?? []).map((grant) => (grant.scope_type === 'user' ? grant.scope_id : null))])
 
   return (
     <QueryBoundary query={person}>
       {(data) => {
         const isSelf = data.id === user?.id
         // Profile edits and password resets are for people in the manager's own reporting line.
-        const inTeam = subtree.ids.has(data.id)
+        const inTeam = isOwner || subtree.ids.has(data.id)
         const canAssign = assignable.options.some((option) => option.value === data.id)
         return (
           <section>
             <PageHeader
-              back={<BackLink to="/users">My team</BackLink>}
+              back={<BackLink to="/users">{isOwner ? 'Users & hierarchy' : 'My team'}</BackLink>}
               title={data.name}
               description={`${data.employee_code}${data.designation ? ` · ${data.designation}` : ''}`}
               actions={
@@ -101,7 +106,8 @@ export function PersonPage() {
                       Edit profile
                     </Button>
                   )}
-                  {inTeam && (
+                  {isOwner && <OwnerPersonActions person={data} />}
+                  {inTeam && !isSelf && (
                     <Button variant="outline" icon={<KeyRound size={16} />} onClick={() => setResetting(true)}>
                       Reset password
                     </Button>
@@ -130,9 +136,31 @@ export function PersonPage() {
                     '—'
                   )}
                 </dd>
+                <dt>Employee ID</dt>
+                <dd>{data.employee_code}</dd>
                 {!inTeam && !isSelf && <><dt>Access</dt><dd>View only (outside your own reporting line)</dd></>}
               </dl>
             </Section>
+
+            {isOwner && data.role === 'manager' && (
+              <Section title="Extra permissions" action={<Link to={`/permissions?manager=${data.id}`}>Manage</Link>}>
+                <QueryBoundary query={grants} skeleton={<Skeleton height={40} />} isEmpty={(rows) => rows.length === 0} empty={<p>None. This manager works within their own reporting line and projects.</p>}>
+                  {(rows) => (
+                    <ul style={{ listStyle: 'none' }} className="stack">
+                      {rows.map((grant) => (
+                        <li key={grant.id} className="meta-line" style={{ justifyContent: 'space-between' }}>
+                          <span>
+                            {permissionLabel(grant.permission_key)}
+                            {grant.scope_type === 'user' ? ` · ${nameOf(grant.scope_id, '…')}` : ''}
+                          </span>
+                          <span className={`badge ${grant.effect === 'allow' ? 'badge-success' : 'badge-danger'}`}>{grant.effect === 'allow' ? 'Allowed' : 'Denied'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </QueryBoundary>
+              </Section>
+            )}
 
             {data.role === 'manager' && (
               <Section title="Direct reports">
@@ -141,7 +169,7 @@ export function PersonPage() {
                     <ul style={{ listStyle: 'none' }} className="stack">
                       {r.items.map((report) => (
                         <li key={report.id}>
-                          <Link to={`/users/${report.id}`}>{report.name}</Link>
+                          <Link className="inline-link" to={`/users/${report.id}`}>{report.name}</Link>
                           {report.designation ? ` · ${report.designation}` : ''}
                           {!report.is_active ? ' (inactive)' : ''}
                         </li>

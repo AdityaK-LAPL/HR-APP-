@@ -170,14 +170,14 @@ export function ServiceDetailPage() {
       {(data) => {
         // What to offer comes from facts on the record plus the caller's own grants; the server decides.
         const isManager = user?.role === 'manager'
+        const isOwner = user?.role === 'owner'
         const responsible = data.responsible_manager_id
-        const manages =
-          isManager && (responsible === user.id || subtree.ids.has(responsible))
+        const manages = isOwner || (isManager && (responsible === user.id || subtree.ids.has(responsible)))
         const canAssign =
           manages || (isManager && can('assign_employees_to_service_call', { type: 'user', id: responsible }))
         const isAssigned = activeAssignments.some((a) => a.employee_id === user?.id)
         const canWork = manages || isAssigned
-        const canReview = isManager && responsible === user.id
+        const canReview = isOwner || (isManager && responsible === user.id)
         return (
         <section>
           <PageHeader

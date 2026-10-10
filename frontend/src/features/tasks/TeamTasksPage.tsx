@@ -74,8 +74,8 @@ export function TeamTasksPage() {
   return (
     <section>
       <PageHeader
-        title="Team tasks"
-        description="Monitor your team's work, assign new tasks and reassign existing ones."
+        title={user?.role === 'owner' ? 'Company tasks' : 'Team tasks'}
+        description={user?.role === 'owner' ? 'All work across the company: monitor it, assign new tasks and reassign existing ones.' : "Monitor your team's work, assign new tasks and reassign existing ones."}
         actions={
           <Button icon={<Plus size={18} />} onClick={() => setAssigning(true)}>
             Assign a task
@@ -155,7 +155,7 @@ export function TeamTasksPage() {
       >
         {(data) => (
           <>
-            <RecordList rows={data.items} columns={columns} rowKey={(t) => t.id} rowHref={(t) => `/tasks/${t.id}`} caption="Team tasks" />
+            <RecordList rows={data.items} columns={columns} rowKey={(t) => t.id} rowHref={(t) => `/tasks/${t.id}`} caption="Tasks" />
             <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onPage={(next) => setParams({ page: String(next) })} />
           </>
         )}

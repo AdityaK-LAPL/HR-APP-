@@ -129,6 +129,50 @@ describe('session refresh', () => {
     expect(expired).toHaveBeenCalledTimes(1)
   })
 
+  it('does not sign the user out when its refresh is refused but another tab already rotated the cookie', async () => {
+    const expired = vi.fn()
+    setSessionExpiredHandler(expired)
+    let rotated = false
+    server.use(
+      // our refresh uses a token the other tab just rotated -> refused ...
+      http.post(`${BASE}/auth/refresh`, () => {
+        rotated = true // ... but the cookie jar now holds the other tab's fresh session
+        return apiError(401, 'authentication_failed', 'Refresh token already used.')
+      }),
+      http.get(`${BASE}/data`, () => (rotated ? HttpResponse.json({ ok: true }) : apiError(401, 'authentication_failed', 'Not authenticated.'))),
+    )
+    await expect(api.get('/data')).resolves.toEqual({ ok: true })
+    expect(expired).not.toHaveBeenCalled()
+  })
+
+  it('serialises refreshes across tabs with a Web Lock when the browser has one', async () => {
+    const order: string[] = []
+    const locks = {
+      request: vi.fn(async (name: string, callback: () => Promise<boolean>) => {
+        order.push(`lock:${name}`)
+        const result = await callback()
+        order.push('unlock')
+        return result
+      }),
+    }
+    Object.defineProperty(navigator, 'locks', { value: locks, configurable: true })
+    let authorised = false
+    server.use(
+      http.post(`${BASE}/auth/refresh`, () => {
+        order.push('refresh')
+        authorised = true
+        return HttpResponse.json({})
+      }),
+      http.get(`${BASE}/data`, () => (authorised ? HttpResponse.json({ ok: true }) : apiError(401, 'authentication_failed', 'x'))),
+    )
+    try {
+      await api.get('/data')
+    } finally {
+      Reflect.deleteProperty(navigator, 'locks')
+    }
+    expect(order).toEqual(['lock:opsflow-session-refresh', 'refresh', 'unlock'])
+  })
+
   it('never refreshes for calls marked skipRefresh (a wrong password is not an expired session)', async () => {
     let refreshes = 0
     server.use(

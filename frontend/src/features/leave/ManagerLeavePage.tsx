@@ -33,7 +33,8 @@ export function ManagerLeavePage() {
   const { user } = useAuth()
   const toast = useToast()
   const [params, setParams] = useUrlParams({ view: 'team', status: '', person: '', page: '1' })
-  const mine = params.view === 'mine'
+  const isOwner = user?.role === 'owner'
+  const mine = !isOwner && params.view === 'mine'
   // Team requests open on "Pending" (what needs a decision); "all" is an explicit choice.
   const status = params.status || (mine ? 'all' : 'pending')
   const page = pageNumber(params.page)
@@ -79,7 +80,8 @@ export function ManagerLeavePage() {
             </Button>
           )
         }
-        if (l.current_approver_id !== user?.id) return null
+        // The approver decides; the Owner may decide any pending request.
+        if (l.current_approver_id !== user?.id && !isOwner) return null
         const who = nameOf(l.employee_id, 'Employee')
         return (
           <span className="meta-line">
@@ -99,13 +101,16 @@ export function ManagerLeavePage() {
     <section>
       <PageHeader
         title="Leave"
-        description="Decide your team's leave requests and manage your own leave."
+        description={isOwner ? 'Every leave request in the company. You can decide any request that is still pending.' : "Decide your team's leave requests and manage your own leave."}
         actions={
-          <Button icon={<Plus size={18} />} onClick={() => setApplying(true)}>
-            Apply for leave
-          </Button>
+          isOwner ? undefined : (
+            <Button icon={<Plus size={18} />} onClick={() => setApplying(true)}>
+              Apply for leave
+            </Button>
+          )
         }
       />
+      {!isOwner && (
       <SegmentedControl
         label="Leave view"
         value={mine ? 'mine' : 'team'}
@@ -115,6 +120,7 @@ export function ManagerLeavePage() {
           { value: 'mine', label: 'My leave' },
         ]}
       />
+      )}
       <div className="toolbar">
         {!mine && (
           <Select

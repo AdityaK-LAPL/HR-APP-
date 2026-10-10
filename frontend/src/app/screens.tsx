@@ -1,4 +1,4 @@
-/** Lazily loaded screens. Each is its own chunk (employee: Prompt 7, manager: Prompt 8). */
+/** Lazily loaded screens. Each is its own chunk (employee: Prompt 7, manager: Prompt 8, owner: Prompt 9). */
 import { lazy } from 'react'
 
 const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType>>, key: K) =>
@@ -29,6 +29,10 @@ export const TeamPage = named(() => import('@/features/team/TeamPage'), 'TeamPag
 export const PersonPage = named(() => import('@/features/team/PersonPage'), 'PersonPage')
 export const CalendarPage = named(() => import('@/features/calendar/CalendarPage'), 'CalendarPage')
 export const NotificationsPage = named(() => import('@/features/notifications/NotificationsPage'), 'NotificationsPage')
+export const OwnerDashboard = named(() => import('@/features/dashboard/OwnerDashboard'), 'OwnerDashboard')
+export const PermissionsPage = named(() => import('@/features/admin/PermissionsPage'), 'PermissionsPage')
+export const AuditLogsPage = named(() => import('@/features/admin/AuditLogsPage'), 'AuditLogsPage')
+export const ReportsPage = named(() => import('@/features/admin/ReportsPage'), 'ReportsPage')
 export const ProfilePage = named(() => import('@/features/profile/ProfilePage'), 'ProfilePage')
 export const FoundationDashboard = named(() => import('@/pages/DashboardPage'), 'DashboardPage')
 export const ModulePlaceholderPage = named(() => import('@/pages/ModulePlaceholderPage'), 'ModulePlaceholderPage')

@@ -1,4 +1,4 @@
-import { Archive, Pencil, Plus, UserMinus } from 'lucide-react'
+import { Archive, ArchiveRestore, Pencil, Plus, UserMinus } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ApiError } from '@/api/errors'
@@ -40,11 +40,13 @@ export function ProjectDetailPage() {
       {(data) => {
         // Hints from facts on the record + the caller's own grants; the server decides.
         const isManager = user?.role === 'manager'
+        const isOwner = user?.role === 'owner'
         const ownsProject = isManager && data.owning_manager_id === user?.id
         const scope = { type: 'project', id: data.id } as const
-        const canEdit = isManager && data.is_active && (ownsProject || can('modify_project', scope))
-        const canArchive = isManager && data.is_active && can('delete_archive_project', scope)
-        const canMembers = isManager && data.is_active && (ownsProject || can('assign_employees_to_project', scope))
+        const canEdit = isOwner || (isManager && data.is_active && (ownsProject || can('modify_project', scope)))
+        const canArchive = data.is_active && (isOwner || (isManager && can('delete_archive_project', scope)))
+        const canRestore = isOwner && !data.is_active
+        const canMembers = data.is_active && (isOwner || (isManager && (ownsProject || can('assign_employees_to_project', scope))))
         return (
         <section>
           <PageHeader
@@ -52,7 +54,7 @@ export function ProjectDetailPage() {
             title={data.name}
             description={data.description ?? undefined}
             actions={
-              canEdit || canArchive ? (
+              canEdit || canArchive || canRestore ? (
                 <>
                   {canEdit && (
                     <Button variant="outline" icon={<Pencil size={16} />} onClick={() => setEditing(true)}>
@@ -64,6 +66,24 @@ export function ProjectDetailPage() {
                       Archive
                     </Button>
                   )}
+                  {canRestore && (
+                    <Button
+                      variant="outline"
+                      icon={<ArchiveRestore size={16} />}
+                      loading={archive.isPending}
+                      onClick={() =>
+                        archive.mutate(
+                          { id: data.id, patch: { is_active: true } },
+                          {
+                            onSuccess: () => toast.success('Project restored.'),
+                            onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Could not restore the project.'),
+                          },
+                        )
+                      }
+                    >
+                      Restore
+                    </Button>
+                  )}
                 </>
               ) : undefined
             }
@@ -73,7 +93,7 @@ export function ProjectDetailPage() {
               <dt>Status</dt>
               <dd>
                 <StatusBadge table={PROJECT_STATUS} value={data.status} />
-                {!data.is_active && ' (archived)'}
+                {!data.is_active && <> <span className="badge badge-neutral">Archived</span></>}
               </dd>
               <dt>Managed by</dt>
               <dd>{nameOf(data.owning_manager_id, '…')}</dd>

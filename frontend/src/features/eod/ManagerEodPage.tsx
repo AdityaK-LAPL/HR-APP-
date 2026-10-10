@@ -23,7 +23,8 @@ const PAGE_SIZE = 20
 export function ManagerEodPage() {
   const { user } = useAuth()
   const [params, setParams] = useUrlParams({ view: 'team', person: '', project: '', date: '', page: '1' })
-  const mine = params.view === 'mine'
+  const isOwner = user?.role === 'owner'
+  const mine = !isOwner && params.view === 'mine'
   const page = pageNumber(params.page)
   const people = useVisiblePeopleOptions()
   const projects = useProjects({ page: 1, page_size: 100 })
@@ -52,13 +53,16 @@ export function ManagerEodPage() {
     <section>
       <PageHeader
         title="EOD reports"
-        description="Read your team's end-of-day reports and submit your own."
+        description={isOwner ? 'Read the end-of-day reports of everyone in the company.' : "Read your team's end-of-day reports and submit your own."}
         actions={
-          <Link to="/eod/new" className="btn btn-primary">
-            <Plus size={18} aria-hidden="true" /> Submit my report
-          </Link>
+          isOwner ? undefined : (
+            <Link to="/eod/new" className="btn btn-primary">
+              <Plus size={18} aria-hidden="true" /> Submit my report
+            </Link>
+          )
         }
       />
+      {!isOwner && (
       <SegmentedControl
         label="Report view"
         value={mine ? 'mine' : 'team'}
@@ -68,6 +72,7 @@ export function ManagerEodPage() {
           { value: 'mine', label: 'My reports' },
         ]}
       />
+      )}
       <div className="toolbar">
         {!mine && (
           <Select

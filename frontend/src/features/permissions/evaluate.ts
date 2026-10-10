@@ -22,12 +22,11 @@ export function evaluatePermission(
   if (!permissions) return false
   if (permissions.unrestricted) return true
 
-  const applies = (grant: MyPermissions['grants'][number]) => {
-    if (grant.permission_key !== key) return false
-    if (grant.scope_type === 'global') return true
-    if (!scope) return false
-    return grant.scope_type === scope.type && (grant.scope_id ?? null) === (scope.id ?? null)
-  }
+  // The server matches a grant only on the exact (scope type, scope id) pair it asks about -
+  // a `global` grant does not stand in for a project or user scope - so the hint does the same.
+  const asked = { type: scope?.type ?? 'global', id: scope?.id ?? null }
+  const applies = (grant: MyPermissions['grants'][number]) =>
+    grant.permission_key === key && grant.scope_type === asked.type && (grant.scope_id ?? null) === asked.id
   const matching = permissions.grants.filter(applies)
 
   if (matching.some((grant) => grant.effect === 'deny')) return false

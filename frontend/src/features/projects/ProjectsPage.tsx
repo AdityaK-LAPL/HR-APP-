@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuth } from '@/features/auth/authContext'
 import { Can } from '@/features/permissions/Can'
 import { usePeople } from '@/features/people/usePeople'
+import { personLabel, useVisibleUsers } from '@/features/team/queries'
 import { formatDate } from '@/lib/dates'
 import { PROJECT_STATUS, optionsOf } from '@/lib/labels'
 import { pageNumber, useUrlParams } from '@/lib/useUrlParams'
@@ -22,12 +23,16 @@ const PAGE_SIZE = 20
 export function ProjectsPage() {
   const { user } = useAuth()
   const isManager = user?.role === 'manager'
-  const [params, setParams] = useUrlParams({ status: '', scope: '', page: '1' })
+  const isOwner = user?.role === 'owner'
+  const isStaff = isManager || isOwner
+  const managers = useVisibleUsers({ role: 'manager', is_active: true, page: 1, page_size: 100 }, isOwner)
+  const [params, setParams] = useUrlParams({ status: '', scope: '', manager: '', page: '1' })
   const [creating, setCreating] = useState(false)
   const page = pageNumber(params.page)
   const query = useProjects({
     ...(params.status ? { status: params.status } : {}),
     ...(isManager && params.scope === 'managed' && user ? { manager_id: user.id } : {}),
+    ...(isOwner && params.manager ? { manager_id: params.manager } : {}),
     page,
     page_size: PAGE_SIZE,
   })
@@ -35,7 +40,21 @@ export function ProjectsPage() {
 
   const columns: Column<Project>[] = [
     { key: 'name', header: 'Project', primary: true, cell: (p) => p.name },
-    { key: 'status', header: 'Status', cell: (p) => <StatusBadge table={PROJECT_STATUS} value={p.status} /> },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (p) => (
+        <>
+          <StatusBadge table={PROJECT_STATUS} value={p.status} />
+          {!p.is_active && (
+            <>
+              {' '}
+              <span className="badge badge-neutral">Archived</span>
+            </>
+          )}
+        </>
+      ),
+    },
     { key: 'manager', header: 'Managed by', cell: (p) => nameOf(p.owning_manager_id, '…') },
     { key: 'start', header: 'Starts', cell: (p) => formatDate(p.start_date) || '—' },
     { key: 'end', header: 'Expected end', cell: (p) => formatDate(p.expected_end_date) || '—' },
@@ -44,10 +63,10 @@ export function ProjectsPage() {
   return (
     <section>
       <PageHeader
-        title={isManager ? 'Projects' : 'My projects'}
-        description={isManager ? 'Projects you manage, your team is part of, or have been given access to.' : 'Projects you have been added to.'}
+        title={isStaff ? 'Projects' : 'My projects'}
+        description={isOwner ? 'Every project in the company, active and archived.' : isManager ? 'Projects you manage, your team is part of, or have been given access to.' : 'Projects you have been added to.'}
         actions={
-          isManager ? (
+          isStaff ? (
             <Can permission="create_project">
               <Button icon={<Plus size={18} />} onClick={() => setCreating(true)}>
                 New project
@@ -57,6 +76,15 @@ export function ProjectsPage() {
         }
       />
       <div className="toolbar">
+        {isOwner && (
+          <Select
+            label="Managed by"
+            value={params.manager}
+            onChange={(event) => setParams({ manager: event.target.value })}
+            options={(managers.data?.items ?? []).map((person) => ({ value: person.id, label: personLabel(person) }))}
+            placeholder="Any manager"
+          />
+        )}
         {isManager && (
           <Select
             label="Show"
@@ -81,7 +109,7 @@ export function ProjectsPage() {
           <EmptyState
             icon={<Briefcase size={24} />}
             title={params.status ? 'No projects with that status' : 'No projects yet'}
-            description={params.status ? 'Try another status.' : isManager ? 'Create a project to allocate your team to it.' : 'Projects you are added to will appear here.'}
+            description={params.status ? 'Try another status.' : isStaff ? 'Create a project to allocate your team to it.' : 'Projects you are added to will appear here.'}
           />
         }
       >
@@ -98,7 +126,7 @@ export function ProjectsPage() {
           </>
         )}
       </QueryBoundary>
-      {isManager && <ProjectFormDialog open={creating} onClose={() => setCreating(false)} />}
+      {isStaff && <ProjectFormDialog open={creating} onClose={() => setCreating(false)} />}
     </section>
   )
 }

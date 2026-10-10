@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/fields'
-import { personLabel, useSubtree } from '@/features/team/queries'
-import { useAuth } from '@/features/auth/authContext'
+import { useTeamOptions } from '@/features/team/queries'
 import { useAddProjectMember } from './queries'
 
 /** Allocate someone from the manager's team to the project. */
@@ -39,19 +38,13 @@ function AddMemberForm({
   onClose: () => void
 }) {
   const toast = useToast()
-  const { user } = useAuth()
-  const subtree = useSubtree()
+  const team = useTeamOptions()
   const add = useAddProjectMember(projectId)
   const [userId, setUserId] = useState('')
   const [role, setRole] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const options = [
-    ...(user && !currentMemberIds.has(user.id) ? [{ value: user.id, label: personLabel(user, ' (you)') }] : []),
-    ...subtree.people
-      .filter((person) => person.is_active && !currentMemberIds.has(person.id))
-      .map((person) => ({ value: person.id, label: personLabel(person) })),
-  ]
+  const options = team.options.filter((option) => !currentMemberIds.has(option.value))
 
   return (
     <div className="stack">
@@ -61,7 +54,7 @@ function AddMemberForm({
         required
         value={userId}
         onChange={(event) => setUserId(event.target.value)}
-        placeholder={subtree.isLoading ? 'Loading your team…' : options.length ? 'Choose a person' : 'Everyone is already on this project'}
+        placeholder={team.isLoading ? 'Loading people…' : options.length ? 'Choose a person' : 'Everyone is already on this project'}
         options={options}
       />
       <Input label="Role on the project" hint="Optional, e.g. Site engineer." value={role} onChange={(event) => setRole(event.target.value)} />
