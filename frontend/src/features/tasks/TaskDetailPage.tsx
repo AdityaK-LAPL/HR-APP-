@@ -1,3 +1,4 @@
+import { Pencil, UserRoundCog } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError } from '@/api/errors'
@@ -11,12 +12,16 @@ import { PageHeader, Section } from '@/components/ui/PageHeader'
 import { Select } from '@/components/ui/fields'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
+import { useAuth } from '@/features/auth/authContext'
 import { useCompanyToday } from '@/features/config/useCompanyToday'
 import { usePeople } from '@/features/people/usePeople'
 import { useProject } from '@/features/projects/queries'
+import { useSubtree } from '@/features/team/queries'
 import { formatDate, formatDateTime } from '@/lib/dates'
 import { PRIORITY, TASK_STATUS, optionsOf } from '@/lib/labels'
 import { isOverdue } from './logic'
+import { ReassignDialog } from './ReassignDialog'
+import { TaskFormDialog } from './TaskFormDialog'
 import { useTask, useTaskHistory, useUpdateTaskStatus, type Task, type TaskStatus } from './queries'
 
 const FIELD_LABELS: Record<string, string> = {
@@ -122,16 +127,38 @@ export function TaskDetailPage() {
   const today = useCompanyToday()
   const task = useTask(id)
   const project = useProject(task.data?.project_id)
-  const { nameOf } = usePeople([task.data?.assigned_by])
+  const { user } = useAuth()
+  const subtree = useSubtree()
+  const [editing, setEditing] = useState(false)
+  const [reassigning, setReassigning] = useState(false)
+  const { nameOf } = usePeople([task.data?.assigned_by, task.data?.assigned_to])
 
   return (
     <QueryBoundary query={task}>
-      {(data) => (
+      {(data) => {
+        // Facts on the record decide which controls to offer; the server enforces them again.
+        const isAssignee = data.assigned_to === user?.id
+        const canManage =
+          user?.role === 'owner' ||
+          (user?.role === 'manager' && (data.assigned_by === user.id || isAssignee || subtree.ids.has(data.assigned_to)))
+        return (
         <section>
           <PageHeader
-            back={<BackLink to="/tasks">All tasks</BackLink>}
+            back={<BackLink to="/tasks">{user?.role === 'employee' ? 'All tasks' : 'Team tasks'}</BackLink>}
             title={data.title}
             description={data.description ?? undefined}
+            actions={
+              canManage ? (
+                <>
+                  <Button variant="outline" icon={<UserRoundCog size={16} />} onClick={() => setReassigning(true)}>
+                    Reassign
+                  </Button>
+                  <Button variant="outline" icon={<Pencil size={16} />} onClick={() => setEditing(true)}>
+                    Edit task
+                  </Button>
+                </>
+              ) : undefined
+            }
           />
           <Section title="Details">
             <dl className="facts">
@@ -155,8 +182,20 @@ export function TaskDetailPage() {
                   </>
                 )}
               </dd>
+              {!isAssignee && (
+                <>
+                  <dt>Assigned to</dt>
+                  <dd>
+                    {subtree.ids.has(data.assigned_to) || user?.role === 'owner' ? (
+                      <Link to={`/users/${data.assigned_to}`}>{nameOf(data.assigned_to, '…')}</Link>
+                    ) : (
+                      nameOf(data.assigned_to, '…')
+                    )}
+                  </dd>
+                </>
+              )}
               <dt>Assigned by</dt>
-              <dd>{nameOf(data.assigned_by, '…')}</dd>
+              <dd>{data.assigned_by === user?.id ? 'You' : nameOf(data.assigned_by, '…')}</dd>
               <dt>Project</dt>
               <dd>
                 {!data.project_id ? (
@@ -173,13 +212,22 @@ export function TaskDetailPage() {
               <dd>{formatDateTime(data.updated_at)}</dd>
             </dl>
           </Section>
-          <Section title="Update">
-            <StatusControl key={`${data.id}-${data.status}`} task={data} />
-          </Section>
+          {(canManage || isAssignee) && (
+            <Section title="Update">
+              <StatusControl key={`${data.id}-${data.status}`} task={data} />
+            </Section>
+          )}
           <History taskId={data.id} />
-          <AttachmentsPanel entityType="task" entityId={data.id} canUpload title="Task files" />
+          <AttachmentsPanel entityType="task" entityId={data.id} canUpload={canManage || isAssignee} title="Task files" />
+          {canManage && (
+            <>
+              <TaskFormDialog open={editing} onClose={() => setEditing(false)} task={data} />
+              <ReassignDialog task={data} open={reassigning} onClose={() => setReassigning(false)} />
+            </>
+          )}
         </section>
-      )}
+        )
+      }}
     </QueryBoundary>
   )
 }

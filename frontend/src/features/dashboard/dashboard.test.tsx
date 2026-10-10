@@ -32,11 +32,18 @@ describe('Employee dashboard', () => {
 })
 
 describe('Roles', () => {
-  it('keeps managers and owners on their own placeholders (their screens come in later phases)', async () => {
-    mockSession(manager)
+  it('keeps the owner on placeholders (the owner screens come in Prompt 9)', async () => {
+    mockSession(owner)
     renderApp('/tasks')
     expect(await screen.findByText('Not built yet')).toBeInTheDocument()
     expect(screen.queryByText('No tasks assigned to you')).not.toBeInTheDocument()
+  })
+
+  it('gives managers their own team screens, not the employee ones', async () => {
+    mockSession(manager)
+    renderApp('/tasks')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Team tasks' })).toBeInTheDocument()
+    expect(screen.queryByText('Not built yet')).not.toBeInTheDocument()
   })
 
   it('does not expose employee detail screens to other roles', async () => {

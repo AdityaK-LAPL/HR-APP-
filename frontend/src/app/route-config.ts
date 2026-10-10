@@ -153,7 +153,8 @@ export const ROUTES: readonly RouteSpec[] = [
     title: 'Reports',
     icon: BarChart3,
     section: 'Insights',
-    roles: ['owner', 'manager'],
+    // Managers get this screen in Prompt 11; until then it is not offered to them.
+    roles: ['owner'],
     phase: 11,
     description: 'Attendance, task, leave and service reports.',
   },
@@ -164,7 +165,7 @@ export const ROUTES: readonly RouteSpec[] = [
     section: 'Administration',
     roles: ['owner', 'manager'],
     labels: { owner: 'Users & hierarchy', manager: 'My team' },
-    phase: 9,
+    phase: 9, // Owner screen; the manager's "My team" shipped in Prompt 8
     description: 'Users, roles and the reporting hierarchy.',
   },
   {

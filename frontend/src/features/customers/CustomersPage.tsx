@@ -6,6 +6,7 @@ import { RecordList, type Column } from '@/components/data/RecordList'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { useAuth } from '@/features/auth/authContext'
 import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import { pageNumber, useUrlParams } from '@/lib/useUrlParams'
 import { useCustomers, type Customer } from '@/features/service/queries'
@@ -14,6 +15,7 @@ const PAGE_SIZE = 20
 
 /** Customers reachable through the employee's service-call assignments (the API scopes the list). */
 export function CustomersPage() {
+  const isEmployee = useAuth().user?.role === 'employee'
   const [params, setParams] = useUrlParams({ name: '', page: '1' })
   const [nameInput, setNameInput] = useState(params.name)
   const name = useDebouncedValue(nameInput.trim())
@@ -28,7 +30,10 @@ export function CustomersPage() {
 
   return (
     <section>
-      <PageHeader title="My customers" description="Customers you are working with through your service calls." />
+      <PageHeader
+        title={isEmployee ? 'My customers' : 'Customers'}
+        description={isEmployee ? 'Customers you are working with through your service calls.' : 'The customer directory. Open a customer for contacts, machines and service history.'}
+      />
       <div className="toolbar">
         <Input
           label="Customer name"
@@ -46,7 +51,7 @@ export function CustomersPage() {
           <EmptyState
             icon={<Building2 size={24} />}
             title={name ? 'No customers match' : 'No customers yet'}
-            description={name ? 'Try a different name.' : 'Customers appear here once you are assigned to one of their service calls.'}
+            description={name ? 'Try a different name.' : isEmployee ? 'Customers appear here once you are assigned to one of their service calls.' : 'Customers appear here once they are added.'}
           />
         }
       >

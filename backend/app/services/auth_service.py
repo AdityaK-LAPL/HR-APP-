@@ -11,7 +11,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -235,28 +235,41 @@ async def admin_reset_password(
         if actor.role != "manager" or not await in_scope(db, actor, target_user_id):
             raise AuthorizationError("You do not have permission to reset this user's password.")
 
-    credentials = (
-        await db.execute(select(UserCredentials).where(UserCredentials.user_id == target_user_id))
-    ).scalar_one_or_none()
-    if credentials is None:
-        raise NotFoundError("User has no credentials on record.")
+    if actor.role == "owner" or actor.id == target_user_id:
+        credentials = (
+            await db.execute(select(UserCredentials).where(UserCredentials.user_id == target_user_id))
+        ).scalar_one_or_none()
+        if credentials is None:
+            raise NotFoundError("User has no credentials on record.")
 
-    now = datetime.now(UTC)
-    credentials.password_hash = hash_password(temporary_password)
-    credentials.must_reset = True
-    credentials.password_changed_at = now
-    credentials.failed_attempts = 0
-    credentials.locked_until = None
+        now = datetime.now(UTC)
+        credentials.password_hash = hash_password(temporary_password)
+        credentials.must_reset = True
+        credentials.password_changed_at = now
+        credentials.failed_attempts = 0
+        credentials.locked_until = None
 
-    active_sessions = (
-        await db.execute(
-            select(SessionModel).where(
-                SessionModel.user_id == target_user_id, SessionModel.revoked_at.is_(None)
+        active_sessions = (
+            await db.execute(
+                select(SessionModel).where(
+                    SessionModel.user_id == target_user_id, SessionModel.revoked_at.is_(None)
+                )
             )
-        )
-    ).scalars()
-    for session in active_sessions:
-        session.revoked_at = now
+        ).scalars()
+        for session in active_sessions:
+            session.revoked_at = now
+    else:
+        # A Manager resetting a team member: row-level security keeps credentials and sessions
+        # Owner-or-self (a manager must never read a password hash), so a narrow database
+        # function does the write after re-checking the reporting line itself (migration 0018).
+        reset = (
+            await db.execute(
+                text("SELECT app_admin_reset_password(:target, :hash)"),
+                {"target": target_user_id, "hash": hash_password(temporary_password)},
+            )
+        ).scalar_one()
+        if not reset:
+            raise NotFoundError("User has no credentials on record.")
 
     await record_audit_log(
         db,

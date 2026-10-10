@@ -1,4 +1,4 @@
-import { Building2, Cpu, Pencil, Plus } from 'lucide-react'
+import { Building2, ClipboardCheck, Cpu, Pencil, Plus, UserMinus, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ApiError } from '@/api/errors'
@@ -7,15 +7,20 @@ import { useToast } from '@/components/feedback/toastContext'
 import { Alert } from '@/components/ui/Alert'
 import { BackLink } from '@/components/ui/BackLink'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PageHeader, Section } from '@/components/ui/PageHeader'
 import { Select } from '@/components/ui/fields'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { useAuth } from '@/features/auth/authContext'
+import { useCan } from '@/features/permissions/usePermissions'
 import { usePeople } from '@/features/people/usePeople'
+import { useSubtree } from '@/features/team/queries'
 import { formatDate, formatDateTime } from '@/lib/dates'
 import { CONTACT_METHOD, MACHINE_STATUS, PRIORITY, SERVICE_STATUS, SERVICE_TYPE, VISIT_TYPE, labelOf, optionsOf } from '@/lib/labels'
+import { AssignEmployeeDialog } from './AssignEmployeeDialog'
 import { ReportDialog } from './ReportDialog'
+import { ReviewReportDialog } from './ReviewReportDialog'
 import { VisitDialog } from './VisitDialog'
 import {
   useAssignments,
@@ -24,9 +29,12 @@ import {
   useMachine,
   useServiceCall,
   useServiceReports,
+  useUnassignEmployee,
   useUpdateCallStatus,
   useVisits,
+  type Assignment,
   type ServiceCall,
+  type ServiceReport,
   type ServiceStatus,
   type Visit,
 } from './queries'
@@ -142,19 +150,38 @@ export function ServiceDetailPage() {
   const reports = useServiceReports(id)
   const [visitDialog, setVisitDialog] = useState<{ open: boolean; visit: Visit | null }>({ open: false, visit: null })
   const [reportOpen, setReportOpen] = useState(false)
+  const [assigning, setAssigning] = useState(false)
+  const [toUnassign, setToUnassign] = useState<Assignment | null>(null)
+  const [reviewing, setReviewing] = useState<ServiceReport | null>(null)
+  const toast = useToast()
+  const unassign = useUnassignEmployee(id)
+  const can = useCan()
+  const subtree = useSubtree()
   const activeAssignments = (assignments.data ?? []).filter((a) => a.is_active)
   const { nameOf } = usePeople([
     call.data?.responsible_manager_id,
     ...activeAssignments.map((a) => a.employee_id),
-    ...(reports.data ?? []).map((r) => r.reviewed_by),
+    ...(reports.data ?? []).flatMap((r) => [r.reviewed_by, r.employee_id]),
+    ...(visits.data ?? []).map((v) => v.employee_id),
   ])
 
   return (
     <QueryBoundary query={call}>
-      {(data) => (
+      {(data) => {
+        // What to offer comes from facts on the record plus the caller's own grants; the server decides.
+        const isManager = user?.role === 'manager'
+        const responsible = data.responsible_manager_id
+        const manages =
+          isManager && (responsible === user.id || subtree.ids.has(responsible))
+        const canAssign =
+          manages || (isManager && can('assign_employees_to_service_call', { type: 'user', id: responsible }))
+        const isAssigned = activeAssignments.some((a) => a.employee_id === user?.id)
+        const canWork = manages || isAssigned
+        const canReview = isManager && responsible === user.id
+        return (
         <section>
           <PageHeader
-            back={<BackLink to="/service">All service calls</BackLink>}
+            back={<BackLink to="/service">{user?.role === 'employee' ? 'All service calls' : 'Service calls'}</BackLink>}
             title={`Call ${data.service_call_code}`}
             description={data.issue_reported}
           />
@@ -178,7 +205,7 @@ export function ServiceDetailPage() {
               <dt>Responsible manager</dt>
               <dd>{nameOf(data.responsible_manager_id, '…')}</dd>
               <dt>Team on this call</dt>
-              <dd>{activeAssignments.length ? activeAssignments.map((a) => nameOf(a.employee_id, '…')).join(', ') : '—'}</dd>
+              <dd>{activeAssignments.length ? activeAssignments.map((a) => nameOf(a.employee_id, '…')).join(', ') : 'Nobody assigned yet'}</dd>
               {data.resolution && (
                 <>
                   <dt>Resolution</dt>
@@ -190,16 +217,60 @@ export function ServiceDetailPage() {
 
           <CustomerAndMachine call={data} />
 
-          <Section title="Update status">
-            <StatusControl key={`${data.id}-${data.status}`} call={data} />
-          </Section>
+          {(isManager || user?.role === 'owner') && (
+            <Section
+              title="Assigned team"
+              action={
+                canAssign ? (
+                  <Button size="sm" icon={<UserPlus size={16} />} onClick={() => setAssigning(true)}>
+                    Assign someone
+                  </Button>
+                ) : undefined
+              }
+            >
+              {activeAssignments.length === 0 ? (
+                <p>Nobody is assigned to this call yet.</p>
+              ) : (
+                <ul style={{ listStyle: 'none' }} className="stack">
+                  {activeAssignments.map((assignment) => (
+                    <li key={assignment.id} className="meta-line" style={{ justifyContent: 'space-between' }}>
+                      <span>
+                        <strong>{nameOf(assignment.employee_id, '…')}</strong>
+                        {assignment.role_in_call ? ` · ${assignment.role_in_call}` : ''}
+                        <span> · since {formatDate(assignment.assigned_at)}</span>
+                      </span>
+                      {canAssign && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          icon={<UserMinus size={14} />}
+                          onClick={() => setToUnassign(assignment)}
+                          aria-label={`Remove ${nameOf(assignment.employee_id, 'person')} from this call`}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          )}
+
+          {canWork && (
+            <Section title="Update status">
+              <StatusControl key={`${data.id}-${data.status}`} call={data} />
+            </Section>
+          )}
 
           <Section
             title="Visits & support sessions"
             action={
-              <Button size="sm" icon={<Plus size={16} />} onClick={() => setVisitDialog({ open: true, visit: null })}>
-                Record a visit
-              </Button>
+              canWork ? (
+                <Button size="sm" icon={<Plus size={16} />} onClick={() => setVisitDialog({ open: true, visit: null })}>
+                  Record a visit
+                </Button>
+              ) : undefined
             }
           >
             <QueryBoundary query={visits} isEmpty={(rows) => rows.length === 0} empty={<p>No visits recorded yet.</p>}>
@@ -216,8 +287,8 @@ export function ServiceDetailPage() {
                             {visit.departure_time && <span>left {formatDateTime(visit.departure_time)}</span>}
                           </div>
                         </div>
-                        {/* Only your own visits: a fact on the record; the server enforces it too. */}
-                        {visit.employee_id === user?.id && (
+                        {/* Your own visits, or any visit if you manage the call; the server enforces it too. */}
+                        {(visit.employee_id === user?.id || manages) && (
                           <Button size="sm" variant="outline" icon={<Pencil size={14} />} onClick={() => setVisitDialog({ open: true, visit })}>
                             Edit
                           </Button>
@@ -236,24 +307,37 @@ export function ServiceDetailPage() {
           <Section
             title="Service report"
             action={
-              <Button size="sm" icon={<Plus size={16} />} onClick={() => setReportOpen(true)}>
-                Submit report
-              </Button>
+              isAssigned ? (
+                <Button size="sm" icon={<Plus size={16} />} onClick={() => setReportOpen(true)}>
+                  Submit report
+                </Button>
+              ) : undefined
             }
           >
-            <QueryBoundary query={reports} isEmpty={(rows) => rows.length === 0} empty={<p>You haven&apos;t submitted a report for this call yet.</p>}>
+            <QueryBoundary
+              query={reports}
+              isEmpty={(rows) => rows.length === 0}
+              empty={<p>{isAssigned ? "You haven't submitted a report for this call yet." : 'No report has been submitted for this call yet.'}</p>}
+            >
               {(rows) => (
                 <ul style={{ listStyle: 'none' }} className="stack">
                   {rows.map((report) => (
                     <li key={report.id} className="glass-card" style={{ padding: 14 }}>
                       <div className="meta-line">
-                        <strong>Submitted {formatDateTime(report.submitted_at)}</strong>
+                        <strong>
+                          {report.employee_id === user?.id ? 'Submitted' : `${nameOf(report.employee_id, '…')} submitted`} {formatDateTime(report.submitted_at)}
+                        </strong>
                         {report.reviewed_at ? (
                           <span className="badge badge-success">
                             Reviewed by {nameOf(report.reviewed_by, 'manager')} · {formatDateTime(report.reviewed_at)}
                           </span>
                         ) : (
                           <span className="badge badge-warning">Awaiting review</span>
+                        )}
+                        {canReview && !report.reviewed_at && (
+                          <Button size="sm" variant="success" icon={<ClipboardCheck size={14} />} onClick={() => setReviewing(report)}>
+                            Review
+                          </Button>
                         )}
                       </div>
                       <dl className="facts" style={{ marginTop: 10 }}>
@@ -276,7 +360,12 @@ export function ServiceDetailPage() {
                             </div>
                           ))}
                       </dl>
-                      <AttachmentsPanel entityType="service_report" entityId={report.id} canUpload title="Report files" />
+                      <AttachmentsPanel
+                        entityType="service_report"
+                        entityId={report.id}
+                        canUpload={report.employee_id === user?.id || canReview}
+                        title="Report files"
+                      />
                     </li>
                   ))}
                 </ul>
@@ -284,7 +373,7 @@ export function ServiceDetailPage() {
             </QueryBoundary>
           </Section>
 
-          <AttachmentsPanel entityType="service_call" entityId={data.id} canUpload title="Call files" />
+          <AttachmentsPanel entityType="service_call" entityId={data.id} canUpload={canWork} title="Call files" />
 
           <VisitDialog
             call={data}
@@ -293,8 +382,35 @@ export function ServiceDetailPage() {
             onClose={() => setVisitDialog((current) => ({ ...current, open: false }))}
           />
           <ReportDialog call={data} visits={visits.data ?? []} open={reportOpen} onClose={() => setReportOpen(false)} />
+          {canAssign && (
+            <AssignEmployeeDialog
+              callId={data.id}
+              assignedIds={new Set(activeAssignments.map((a) => a.employee_id))}
+              open={assigning}
+              onClose={() => setAssigning(false)}
+            />
+          )}
+          <ReviewReportDialog callId={data.id} report={reviewing} onClose={() => setReviewing(null)} />
+          <ConfirmDialog
+            open={toUnassign !== null}
+            tone="danger"
+            title="Remove from this call?"
+            message={toUnassign ? `${nameOf(toUnassign.employee_id, 'This person')} will no longer be assigned to ${data.service_call_code}. Their visits and reports stay on record.` : ''}
+            confirmLabel="Remove"
+            busy={unassign.isPending}
+            onCancel={() => setToUnassign(null)}
+            onConfirm={() => {
+              if (!toUnassign) return
+              unassign.mutate(toUnassign.id, {
+                onSuccess: () => toast.success('Removed from the call.'),
+                onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Could not remove this person.'),
+                onSettled: () => setToUnassign(null),
+              })
+            }}
+          />
         </section>
-      )}
+        )
+      }}
     </QueryBoundary>
   )
 }

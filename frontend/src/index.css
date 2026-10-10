@@ -334,20 +334,21 @@ button {
   border-color: var(--text-muted);
 }
 
+/* White text on these fills must reach 4.5:1 (WCAG AA): #dc2626 = 4.8, #047857 = 5.5. */
 .btn-danger {
-  background-color: var(--danger);
+  background-color: #dc2626;
   color: #fff;
 }
 .btn-danger:hover:not(:disabled) {
-  background-color: var(--danger-hover);
+  background-color: #b91c1c;
 }
 
 .btn-success {
-  background-color: var(--success);
+  background-color: #047857;
   color: #fff;
 }
 .btn-success:hover:not(:disabled) {
-  background-color: var(--success-hover);
+  background-color: #065f46;
 }
 
 .btn-outline {

@@ -1,4 +1,4 @@
-/** Lazily loaded screens. Each is its own chunk; the employee screens ship with Prompt 7. */
+/** Lazily loaded screens. Each is its own chunk (employee: Prompt 7, manager: Prompt 8). */
 import { lazy } from 'react'
 
 const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType>>, key: K) =>
@@ -20,6 +20,15 @@ export const CustomersPage = named(() => import('@/features/customers/CustomersP
 export const CustomerDetailPage = named(() => import('@/features/customers/CustomerDetailPage'), 'CustomerDetailPage')
 export const MachinesPage = named(() => import('@/features/customers/MachinesPage'), 'MachinesPage')
 export const MachineDetailPage = named(() => import('@/features/customers/MachineDetailPage'), 'MachineDetailPage')
+export const ManagerDashboard = named(() => import('@/features/dashboard/ManagerDashboard'), 'ManagerDashboard')
+export const TeamTasksPage = named(() => import('@/features/tasks/TeamTasksPage'), 'TeamTasksPage')
+export const ManagerLeavePage = named(() => import('@/features/leave/ManagerLeavePage'), 'ManagerLeavePage')
+export const ManagerEodPage = named(() => import('@/features/eod/ManagerEodPage'), 'ManagerEodPage')
+export const TeamAttendancePage = named(() => import('@/features/attendance/TeamAttendancePage'), 'TeamAttendancePage')
+export const TeamPage = named(() => import('@/features/team/TeamPage'), 'TeamPage')
+export const PersonPage = named(() => import('@/features/team/PersonPage'), 'PersonPage')
+export const CalendarPage = named(() => import('@/features/calendar/CalendarPage'), 'CalendarPage')
+export const NotificationsPage = named(() => import('@/features/notifications/NotificationsPage'), 'NotificationsPage')
 export const ProfilePage = named(() => import('@/features/profile/ProfilePage'), 'ProfilePage')
 export const FoundationDashboard = named(() => import('@/pages/DashboardPage'), 'DashboardPage')
 export const ModulePlaceholderPage = named(() => import('@/pages/ModulePlaceholderPage'), 'ModulePlaceholderPage')

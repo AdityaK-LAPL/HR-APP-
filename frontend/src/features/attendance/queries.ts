@@ -40,6 +40,20 @@ export function useAttendanceHistory(userId: string | undefined, filters: Attend
   })
 }
 
+export interface TeamAttendanceFilters extends AttendanceFilters {
+  user_id?: string
+}
+
+/** Attendance days of everyone the caller may see (own + reporting subtree + grants). */
+export function useTeamAttendance(filters: TeamAttendanceFilters) {
+  return useQuery({
+    queryKey: ['attendance', 'team', filters],
+    queryFn: ({ signal }) =>
+      api.get<Schema<'AttendanceListResponse'>>('/attendance', { query: { ...filters }, signal }),
+    placeholderData: keepPreviousData,
+  })
+}
+
 export function useAttendanceEvents(userId: string, workDate: string | null) {
   return useQuery({
     queryKey: ['attendance', 'events', userId, workDate],

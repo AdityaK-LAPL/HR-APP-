@@ -7,6 +7,7 @@ export type LeaveInput = Schema<'LeaveCreateRequest'>
 
 export interface LeaveFilters {
   status?: string
+  employee_id?: string
   page: number
   page_size: number
 }
@@ -33,5 +34,19 @@ export function useCancelLeave() {
   return useMutation({
     mutationFn: (id: string) => api.post<Leave>(`/leaves/${id}/cancel`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leaves'] }),
+  })
+}
+
+/** Approve or reject a request the caller is the approver for (the server checks that). */
+export function useDecideLeave() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, decision, comments }: { id: string; decision: 'approve' | 'reject'; comments: string | null }) =>
+      api.post<Leave>(`/leaves/${id}/${decision}`, { comments }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['leaves'] })
+      void queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      void queryClient.invalidateQueries({ queryKey: ['reports'] })
+    },
   })
 }

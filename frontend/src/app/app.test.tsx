@@ -107,10 +107,15 @@ describe('signing in', () => {
   })
 
   it('shows who the user reports to using the directory (names for ids)', async () => {
-    mockSession(manager) // reports to the owner; shown on the foundation dashboard
-    renderApp('/dashboard')
+    mockSession(manager) // reports to the owner
+    renderApp('/profile')
     expect(await screen.findByText('Olivia Owner')).toBeInTheDocument()
-    expect(screen.getByText(/Mar 2026/)).toBeInTheDocument() // company day from /config
+  })
+
+  it('shows the company day from /config on the manager dashboard', async () => {
+    mockSession(manager)
+    renderApp('/dashboard')
+    expect(await screen.findByText('Team overview · 05 Mar 2026')).toBeInTheDocument()
   })
 })
 

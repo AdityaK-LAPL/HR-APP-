@@ -1,5 +1,6 @@
 import { useMatches } from 'react-router-dom'
 import type { RouteHandle } from '@/app/route-config'
+import { NotificationBell } from './NotificationBell'
 import { UserMenu } from './UserMenu'
 
 export function Header() {
@@ -13,7 +14,10 @@ export function Header() {
         <img src="/pwa-icon.svg" alt="" width={30} height={30} />
         <p className="app-header-title">{handle?.title ?? 'OpsFlow'}</p>
       </div>
-      <UserMenu />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <NotificationBell />
+        <UserMenu />
+      </div>
     </header>
   )
 }

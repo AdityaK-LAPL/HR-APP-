@@ -7,6 +7,8 @@ export type EodInput = Schema<'EodCreateRequest'>
 
 export interface EodFilters {
   report_date?: string
+  user_id?: string
+  project_id?: string
   page: number
   page_size: number
 }

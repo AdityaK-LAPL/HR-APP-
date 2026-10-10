@@ -1,6 +1,6 @@
 # Development Status
 
-Last updated: 2026-09-28
+Last updated: 2026-10-10
 
 ## Prompt progress (18-prompt plan) - updated 2026-10-09
 
@@ -13,9 +13,40 @@ Last updated: 2026-09-28
 | 5 | Frontend architecture plan | **Complete.** Planning follow-ups done 2026-10-09: `GET /users/directory` (migration 0017), enums published in OpenAPI; the only open item is the company-timezone decision (D3). **Awaiting go-ahead for Prompt 6** - `docs/frontend-architecture.md`; audit of the existing prototype frontend found it is built on a mock backend (see that document §1) |
 | 6 | Frontend foundation + authentication | **Complete** - see "Frontend Phase 1" below (real login/refresh/forced-password-change against the live API; mock layer deleted) |
 | 7 | Frontend: Employee experience | **Complete** - see "Frontend Phase 2" below |
-| 8-18 | Manager/owner screens, service management views, dashboards, notifications, PWA, audits, UAT | Not started |
+| 8 | Frontend: Manager experience | **Complete** - see "Frontend Phase 3" below (also fixed a backend gap: migration 0018) |
+| 9-18 | Owner administration, service management, dashboards/reports, notifications, PWA, audits, UAT | Not started |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
+## Frontend Phase 3: Manager experience (Prompt 8) - 2026-10-10
+
+**Screens (manager role; the Owner keeps placeholders until Prompt 9):**
+- **Team overview (dashboard):** counts straight from the API (people in my team, open and blocked team tasks, pending leave, punched in today out of the team, active service calls), what is waiting for the manager's decision, blocked tasks, busiest people (workload), the manager's own tasks and punch card.
+- **My team / person page:** searchable, filterable list with role, status and workload; the reporting structure as a tree built from `GET /hierarchy`; per person: profile, direct reports, recent tasks / leave / attendance (7 days) / EOD / service calls with links to the filtered lists; assign a task, edit name/designation, reset password (team members only).
+- **Team tasks:** filters (assignee, status, project, date), open/blocked summary, **assign** (to self, the reporting subtree, or another manager the Owner explicitly allowed with `assign_tasks_to_manager`), **edit, reassign**, status; self-assigned tasks; edit controls appear only on tasks the manager created or that sit in their line.
+- **Projects:** create (when `create_project` is allowed), edit (owning manager or a `modify_project` grant), **allocate / remove team members**, archive (only with a `delete_archive_project` grant, after confirmation).
+- **Leave:** team requests (opens on Pending) with **approve (optional note) / reject (reason required)** only on requests where the manager is the approver; "My leave" to apply and cancel.
+- **EOD:** team reports with person/project/date filters and author names; the manager's own report (submit form, read-only detail, uploads only on their own).
+- **Attendance:** team attendance (opens on today; person and date-range filters; punch details) and "My attendance" with the manager's own punch card.
+- **Team calendar:** month grid (agenda list on phones) of tasks and leave with person, project and "my direct reports" filters, day detail dialog.
+- **Service:** list with assignee / responsible / call-number filters; detail with the **assigned team (assign / remove)**, status, visits (record, correct any visit on a managed call), service reports **review**, attachments; customers and machines for the full directory (read-only here; creating them is Prompt 10).
+- **Notifications:** header bell with unread count (polled), list with mark read / mark all read, rendered generically (no links invented - the backend produces no notifications yet).
+- Hierarchy is respected by construction: every list, picker and calendar comes from the API, which already filters by the reporting line and the Owner's grants. A peer manager's branch is invisible unless the Owner grants `view_manager_team` / `view_manager_reports` - and then it is **read-only** in the UI (no edit, reset, assign, status or review controls). An out-of-scope id opens the neutral "Not available" screen. No permission rule is re-implemented in the frontend: buttons are shown from facts on the record (approver, owner, assigner, assignee) plus the caller's own `/permissions/me`, and the server's refusal text is shown if it disagrees.
+
+**Shared pieces added:** `ByRole screens={{employee, manager}}` per-role route table, `SegmentedControl`, `StatTile`, `useUnsavedChangesGuard` reuse, team data hooks (`useSubtree`, `useAssignableUsers`, `useVisiblePeopleOptions`, workload and report summaries), `lib/calendar.ts` (company-date arithmetic with no browser timezone), notification queries and bell.
+
+**Backend gap found and fixed (migration 0018, 2026-10-10):** the contract lets a Manager edit a team member's name/designation and reset their password, but row-level security allowed those writes only to the Owner or the user themself - the edit raised `StaleDataError` (HTTP 500) and the reset answered 404; the earlier tests only covered the Owner and the "outside the subtree" refusal. Fix: `users_update` admits the reporting subtree; a trigger keeps `role`, `is_active`, `manager_id`, `employee_code` Owner-only at the database level (this also stops a user promoting themself); `app_admin_reset_password()` (SECURITY DEFINER, re-checks the reporting line, revokes sessions, clears lockout) so a Manager can still never read a password hash. 11 new tests in `tests/test_manager_user_admin.py`; see `permissions.md` section 12.
+
+**Verification:** `tsc -b` clean, oxlint 0 warnings, production build, **213 Vitest tests** (list/filter/empty/error states, exact request payloads, validation, confirmations, role gating, hierarchy-limited controls, grants, phone layout, calendar maths), backend **full suite re-run after migration 0018: 174 passed, 0 failed** (163 + 11 new) against live Supabase, and a **100-check real-browser run** against the live API with two peer branches: dashboard counts, hierarchy hiding (team, tasks, projects, service calls, direct URLs), person page edit and **real password reset** (old password stops working, temporary one forces a change), task assign/edit/reassign/status/self-assign/filter, leave approve (employee sees it Approved) / own leave apply+cancel, team EOD and own EOD, team attendance and own punch, calendar, project create / allocate / remove, service assign / unassign / review / status / visit, notifications, **Owner grants (peer branch becomes visible but read-only) and an Owner deny (a person disappears from the manager's own list)**, employee regression (no manager screens), iPhone 13 layouts (cards, no horizontal scroll, bottom-sheet forms, 44px tap targets), and **axe-core WCAG A/AA over 14 manager pages at desktop and phone plus 3 dialogs**. The run found and I fixed: the backend gap above; low-contrast white-on-red/green buttons (punch-out, approve - latent since Prompt 7) and greyed calendar days. Console errors: none apart from the expected 401 on the initial session check and the deliberate 404 on an out-of-scope page.
+
+**Known limits / decisions for later phases**
+- The API cannot clear a field: `PATCH` treats omitted and `null` alike, so a task description / due date / project or a user's designation can be changed but not removed (the forms say so).
+- The team calendar lists a multi-day leave only on its first day (that is how `GET /calendar` reports it); a day-by-day leave view belongs with Prompt 11.
+- No endpoint accepts a sort order, so lists use the API's fixed order (documented in api-contract section 21); filters, search and pagination are provided wherever the API supports them.
+- Person pickers (assignee, filters) load the first 100 visible people; fine at current scale.
+- Managers cannot create customers, machines or service calls yet (Prompt 10); "Reports" stays hidden from managers until Prompt 11.
+- Notifications are architectural only on the backend (nothing produces them), so the UI is ready but will show an empty state until a backend producer exists (Prompt 12).
+- Service-call status can be set to any value by an assigned employee or managing manager (backend rule, unchanged).
 
 ## Frontend Phase 2: Employee experience (Prompt 7) - 2026-10-09
 

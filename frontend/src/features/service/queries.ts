@@ -19,6 +19,8 @@ export interface CallFilters {
   service_call_code?: string
   customer_id?: string
   machine_id?: string
+  employee_id?: string
+  manager_id?: string
   page: number
   page_size: number
 }
@@ -188,5 +190,39 @@ export function useMachines(filters: MachineFilters) {
     queryFn: ({ signal }) =>
       api.get<Schema<'MachineListResponse'>>('/machines', { query: { ...filters }, signal }),
     placeholderData: keepPreviousData,
+  })
+}
+
+/** Put an employee on the call (the server checks the caller may; a re-assignment deactivates the old row). */
+export function useAssignEmployee(callId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Schema<'ServiceAssignmentCreateRequest'>) =>
+      api.post<Assignment>(`/service-calls/${callId}/assign`, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: callKeys.assignments(callId) })
+      void queryClient.invalidateQueries({ queryKey: ['service-calls', 'list'] })
+    },
+  })
+}
+
+export function useUnassignEmployee(callId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (assignmentId: string) => api.delete<void>(`/service-calls/${callId}/assign/${assignmentId}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: callKeys.assignments(callId) })
+      void queryClient.invalidateQueries({ queryKey: ['service-calls', 'list'] })
+    },
+  })
+}
+
+/** The responsible manager (or Owner) marks a submitted report as reviewed. */
+export function useReviewReport(callId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, comments }: { id: string; comments: string | null }) =>
+      api.post<ServiceReport>(`/service-reports/${id}/review`, { comments }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: callKeys.reports(callId) }),
   })
 }

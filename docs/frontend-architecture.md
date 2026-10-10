@@ -203,3 +203,8 @@ These are API facts, not frontend bugs. Each is small and additive; none is buil
 | 13 PWA | Offline shell, update flow, icons, device-size verification | |
 
 **Reuse rule for every phase:** keep the existing visual design and layouts as reference, re-implement data access through `features/*/api.ts` + TanStack Query, and delete the old page code in the same change so no mock path survives.
+
+## Appendix: manager phase notes (Prompt 8)
+
+Route table: `SCREENS[path] = {employee?, manager?}` in `app/routes.tsx`; `ByRole` picks by role and falls back to the placeholder / "Not available". A screen is shared between roles when it adapts itself from facts on the record (task detail, project detail, service detail) and split when the experience differs (dashboard, tasks, leave, EOD list, attendance). Permission-aware controls combine record facts (approver, owner, assigner, assignee, `useSubtree`) with `useCan()` over `/permissions/me`; the server stays authoritative and its refusal text is displayed.
+

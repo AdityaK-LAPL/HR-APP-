@@ -3,12 +3,14 @@ import { QueryBoundary } from '@/components/data/QueryBoundary'
 import { Section } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useAuth } from '@/features/auth/authContext'
 import { formatDateTime } from '@/lib/dates'
 import { SERVICE_STATUS } from '@/lib/labels'
 import { useServiceCalls } from '@/features/service/queries'
 
 /** The employee's own calls for a customer or a machine (newest first, as the API returns them). */
 export function ServiceHistory({ customerId, machineId }: { customerId?: string; machineId?: string }) {
+  const isEmployee = useAuth().user?.role === 'employee'
   const query = useServiceCalls({
     ...(customerId ? { customer_id: customerId } : {}),
     ...(machineId ? { machine_id: machineId } : {}),
@@ -16,12 +18,12 @@ export function ServiceHistory({ customerId, machineId }: { customerId?: string;
     page_size: 20,
   })
   return (
-    <Section title="Service history (your calls)">
+    <Section title={isEmployee ? 'Service history (your calls)' : 'Service history'}>
       <QueryBoundary
         query={query}
         skeleton={<Skeleton height={44} />}
         isEmpty={(data) => data.items.length === 0}
-        empty={<p>No service calls of yours for this record.</p>}
+        empty={<p>{isEmployee ? 'No service calls of yours for this record.' : 'No service calls you can see for this record.'}</p>}
       >
         {(data) => (
           <ul style={{ listStyle: 'none' }} className="stack">

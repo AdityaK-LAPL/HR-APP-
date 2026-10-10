@@ -7,9 +7,14 @@ export type TaskStatus = Task['status']
 export type TaskHistoryEntry = Schema<'TaskHistoryEntry'>
 type TaskList = Schema<'TaskListResponse'>
 
+export type TaskInput = Schema<'TaskCreateRequest'>
+export type TaskPatch = Schema<'TaskUpdateRequest'>
+
 export interface TaskFilters {
   status?: string
   task_date?: string
+  assigned_to?: string
+  project_id?: string
   page: number
   page_size: number
 }
@@ -26,7 +31,7 @@ export function useTasks(filters: TaskFilters) {
     queryKey: taskKeys.list(filters),
     queryFn: ({ signal }) =>
       api.get<TaskList>('/tasks', {
-        query: { status: filters.status, task_date: filters.task_date, page: filters.page, page_size: filters.page_size },
+        query: { ...filters },
         signal,
       }),
     placeholderData: keepPreviousData,
@@ -56,6 +61,34 @@ export function useUpdateTaskStatus() {
     onSuccess: (task) => {
       queryClient.setQueryData(taskKeys.detail(task.id), task)
       void queryClient.invalidateQueries({ queryKey: taskKeys.all })
+    },
+  })
+}
+
+/** Managers: create and assign a task (the server checks who the assignee may be). */
+export function useCreateTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: TaskInput) => api.post<Task>('/tasks', input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: taskKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ['reports'] })
+    },
+  })
+}
+
+/**
+ * Managers: edit and/or reassign. The API treats an omitted field as "unchanged" - a field
+ * cannot be cleared once set - so callers send only what they changed.
+ */
+export function useUpdateTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: TaskPatch }) => api.patch<Task>(`/tasks/${id}`, patch),
+    onSuccess: (task) => {
+      queryClient.setQueryData(taskKeys.detail(task.id), task)
+      void queryClient.invalidateQueries({ queryKey: taskKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ['reports'] })
     },
   })
 }

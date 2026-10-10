@@ -82,6 +82,36 @@ export function mockEmployeeData() {
     http.get(`${BASE}/attendance`, () => HttpResponse.json(list([]))),
     http.get(`${BASE}/service-calls`, () => HttpResponse.json(list([]))),
     http.get(`${BASE}/attachments`, () => HttpResponse.json({ items: [] })),
+    http.get(`${BASE}/notifications`, () => HttpResponse.json({ items: [], total: 0 })),
+  )
+}
+
+export const person = (over: Partial<Schema<'UserResponse'>> = {}): Schema<'UserResponse'> => ({
+  id: employee.id,
+  employee_code: 'EMP001',
+  name: 'Erin Employee',
+  designation: 'Service Engineer',
+  role: 'employee',
+  manager_id: manager.id,
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  ...over,
+})
+
+/** What a manager's screens fetch beyond the employee data: nothing here unless a test says so. */
+export function mockManagerData() {
+  server.use(
+    http.get(`${BASE}/users`, () => HttpResponse.json(list([]))),
+    http.get(`${BASE}/users/:id/subordinates`, () => HttpResponse.json([])),
+    http.get(`${BASE}/hierarchy`, () => HttpResponse.json([])),
+    http.get(`${BASE}/calendar`, () => HttpResponse.json({ items: [] })),
+    http.get(`${BASE}/reports/workload`, () => HttpResponse.json([])),
+    http.get(`${BASE}/reports/tasks`, () => HttpResponse.json({ by_status: [], total: 0 })),
+    http.get(`${BASE}/reports/leave`, () => HttpResponse.json({ by_status: [], total: 0 })),
+    http.get(`${BASE}/reports/service-activity`, () =>
+      HttpResponse.json({ by_status: [], total_calls: 0, average_resolution_minutes: null }),
+    ),
   )
 }
 

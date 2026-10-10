@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { MACHINE_STATUS } from '@/lib/labels'
+import { useAuth } from '@/features/auth/authContext'
 import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import { pageNumber, useUrlParams } from '@/lib/useUrlParams'
 import { useCustomerNames, useMachines, type Machine } from '@/features/service/queries'
@@ -16,6 +17,7 @@ const PAGE_SIZE = 20
 
 /** Machines reachable through the employee's service-call assignments (the API scopes the list). */
 export function MachinesPage() {
+  const isEmployee = useAuth().user?.role === 'employee'
   const [params, setParams] = useUrlParams({ q: '', page: '1' })
   const [input, setInput] = useState(params.q)
   const search = useDebouncedValue(input.trim())
@@ -34,7 +36,10 @@ export function MachinesPage() {
 
   return (
     <section>
-      <PageHeader title="My machines" description="Machines you are working on through your service calls." />
+      <PageHeader
+        title={isEmployee ? 'My machines' : 'Machines'}
+        description={isEmployee ? 'Machines you are working on through your service calls.' : 'Customer machines. Open one for its details and service history.'}
+      />
       <div className="toolbar">
         <Input
           label="Serial number"
@@ -52,7 +57,7 @@ export function MachinesPage() {
           <EmptyState
             icon={<Cpu size={24} />}
             title={search ? 'No machines match' : 'No machines yet'}
-            description={search ? 'Try a different serial number.' : 'Machines appear here once you are assigned to a service call on them.'}
+            description={search ? 'Try a different serial number.' : isEmployee ? 'Machines appear here once you are assigned to a service call on them.' : 'Machines appear here once they are added.'}
           />
         }
       >

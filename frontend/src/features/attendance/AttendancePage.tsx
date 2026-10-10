@@ -18,7 +18,7 @@ import { useAttendanceEvents, useAttendanceHistory, type AttendanceDay } from '.
 
 const PAGE_SIZE = 20
 
-function EventsDialog({ userId, date, onClose }: { userId: string; date: string | null; onClose: () => void }) {
+export function EventsDialog({ userId, date, onClose }: { userId: string; date: string | null; onClose: () => void }) {
   const events = useAttendanceEvents(userId, date)
   return (
     <Dialog open={date !== null} onClose={onClose} title={date ? `Punches on ${formatDate(date)}` : 'Punches'}>
@@ -39,7 +39,8 @@ function EventsDialog({ userId, date, onClose }: { userId: string; date: string 
   )
 }
 
-export function AttendancePage() {
+/** The signed-in person's own punch card and history. */
+export function MyAttendance() {
   const { user } = useAuth()
   const [params, setParams] = useUrlParams({ from: '', to: '', page: '1' })
   const page = pageNumber(params.page)
@@ -69,8 +70,7 @@ export function AttendancePage() {
   ]
 
   return (
-    <section>
-      <PageHeader title="Attendance" description="Punch in and out, and review your attendance." />
+    <>
       <PunchCard />
       <Section title="History">
         <div className="toolbar">
@@ -96,6 +96,15 @@ export function AttendancePage() {
         </QueryBoundary>
       </Section>
       {user && <EventsDialog userId={user.id} date={detailDate} onClose={() => setDetailDate(null)} />}
+    </>
+  )
+}
+
+export function AttendancePage() {
+  return (
+    <section>
+      <PageHeader title="Attendance" description="Punch in and out, and review your attendance." />
+      <MyAttendance />
     </section>
   )
 }
