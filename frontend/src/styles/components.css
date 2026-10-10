@@ -355,3 +355,10 @@
 .bell { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--text-secondary); }
 .bell:hover { color: var(--text-primary); }
 .bell-count { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger-hover); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+
+/* Service-call progress strip */
+.workflow { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 16px; }
+.workflow li { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
+.workflow li.done { color: var(--text-primary); }
+.workflow li.done svg { color: #34d399; }
+.workflow li.next { color: var(--text-primary); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }

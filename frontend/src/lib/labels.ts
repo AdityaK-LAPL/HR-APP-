@@ -70,6 +70,12 @@ export const SERVICE_STATUS: Table<ServiceStatus> = {
   cancelled: { label: 'Cancelled', tone: 'neutral' },
 }
 
+/** Call statuses that still need work (everything except resolved, closed and cancelled). */
+export const ACTIVE_CALL_STATUSES: readonly ServiceStatus[] = [
+  'new', 'assigned', 'in_progress', 'waiting_customer', 'waiting_parts',
+  'remote_support', 'field_visit_scheduled', 'field_visit_completed', 'reopened',
+]
+
 export const ATTENDANCE_STATUS: Table<AttendanceStatus> = {
   present: { label: 'Present', tone: 'success' },
   partial: { label: 'Partial', tone: 'warning' },

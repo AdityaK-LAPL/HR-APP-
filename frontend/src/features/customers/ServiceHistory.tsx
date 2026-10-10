@@ -18,7 +18,10 @@ export function ServiceHistory({ customerId, machineId }: { customerId?: string;
     page_size: 20,
   })
   return (
-    <Section title={isEmployee ? 'Service history (your calls)' : 'Service history'}>
+    <Section
+      title={isEmployee ? 'Service history (your calls)' : 'Service history'}
+      action={<Link to={`/service?${customerId ? `customer=${customerId}` : `machine=${machineId}`}`}>All calls</Link>}
+    >
       <QueryBoundary
         query={query}
         skeleton={<Skeleton height={44} />}

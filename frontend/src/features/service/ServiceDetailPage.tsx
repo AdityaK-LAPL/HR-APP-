@@ -1,6 +1,6 @@
-import { Building2, ClipboardCheck, Cpu, Pencil, Plus, UserMinus, UserPlus } from 'lucide-react'
+import { Building2, ClipboardCheck, Cpu, MapPin, Pencil, Plus, UserMinus, UserPlus } from 'lucide-react'
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { ApiError } from '@/api/errors'
 import { QueryBoundary } from '@/components/data/QueryBoundary'
 import { useToast } from '@/components/feedback/toastContext'
@@ -18,7 +18,10 @@ import { usePeople } from '@/features/people/usePeople'
 import { useSubtree } from '@/features/team/queries'
 import { formatDate, formatDateTime } from '@/lib/dates'
 import { CONTACT_METHOD, MACHINE_STATUS, PRIORITY, SERVICE_STATUS, SERVICE_TYPE, VISIT_TYPE, labelOf, optionsOf } from '@/lib/labels'
+import { mapsUrl } from '@/lib/maps'
 import { AssignEmployeeDialog } from './AssignEmployeeDialog'
+import { ServiceCallEditDialog } from './ServiceCallEditDialog'
+import { WorkflowSteps } from './WorkflowSteps'
 import { ReportDialog } from './ReportDialog'
 import { ReviewReportDialog } from './ReviewReportDialog'
 import { VisitDialog } from './VisitDialog'
@@ -52,9 +55,16 @@ function CustomerAndMachine({ call }: { call: ServiceCall }) {
           <>
             <p className="meta-line">
               <Building2 size={14} aria-hidden="true" />
-              <strong>{customer.data.name}</strong> · {customer.data.customer_code}
+              <Link className="inline-link" to={`/customers/${customer.data.id}`}><strong>{customer.data.name}</strong></Link> · {customer.data.customer_code}
             </p>
-            {customer.data.address && <p className="prose">{customer.data.address}</p>}
+            {customer.data.address && (
+              <p className="prose">
+                {customer.data.address}{' '}
+                <a className="inline-link" href={mapsUrl(customer.data.address)} target="_blank" rel="noopener noreferrer">
+                  <MapPin size={14} aria-hidden="true" /> Open in Maps
+                </a>
+              </p>
+            )}
             {(contacts.data ?? []).length > 0 && (
               <ul style={{ listStyle: 'none', marginTop: 10 }} className="stack">
                 {contacts.data!.map((contact) => (
@@ -82,7 +92,7 @@ function CustomerAndMachine({ call }: { call: ServiceCall }) {
           <dl className="facts">
             <dt>Machine</dt>
             <dd>
-              <Cpu size={14} aria-hidden="true" /> {machine.data.machine_code}
+              <Cpu size={14} aria-hidden="true" /> <Link className="inline-link" to={`/machines/${machine.data.id}`}>{machine.data.machine_code}</Link>
             </dd>
             <dt>Model</dt>
             <dd>{machine.data.model_name ?? '—'}</dd>
@@ -151,6 +161,7 @@ export function ServiceDetailPage() {
   const [visitDialog, setVisitDialog] = useState<{ open: boolean; visit: Visit | null }>({ open: false, visit: null })
   const [reportOpen, setReportOpen] = useState(false)
   const [assigning, setAssigning] = useState(false)
+  const [editingCall, setEditingCall] = useState(false)
   const [toUnassign, setToUnassign] = useState<Assignment | null>(null)
   const [reviewing, setReviewing] = useState<ServiceReport | null>(null)
   const toast = useToast()
@@ -184,7 +195,15 @@ export function ServiceDetailPage() {
             back={<BackLink to="/service">{user?.role === 'employee' ? 'All service calls' : 'Service calls'}</BackLink>}
             title={`Call ${data.service_call_code}`}
             description={data.issue_reported}
+            actions={
+              manages ? (
+                <Button variant="outline" icon={<Pencil size={16} />} onClick={() => setEditingCall(true)}>
+                  Edit call
+                </Button>
+              ) : undefined
+            }
           />
+          <WorkflowSteps status={data.status} assignments={assignments.data ?? []} visits={visits.data ?? []} reports={reports.data ?? []} />
 
           <Section title="Details">
             <dl className="facts">
@@ -391,6 +410,7 @@ export function ServiceDetailPage() {
             />
           )}
           <ReviewReportDialog callId={data.id} report={reviewing} onClose={() => setReviewing(null)} />
+          {manages && <ServiceCallEditDialog call={data} open={editingCall} onClose={() => setEditingCall(false)} />}
           <ConfirmDialog
             open={toUnassign !== null}
             tone="danger"

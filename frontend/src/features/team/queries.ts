@@ -82,8 +82,9 @@ export function useTaskSummary(projectId?: string) {
   })
 }
 
-export function useServiceSummary(managerId?: string) {
+export function useServiceSummary(managerId?: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['reports', 'service-activity', managerId ?? null],
     queryFn: ({ signal }) =>
       api.get<Schema<'ServiceActivityReportResponse'>>('/reports/service-activity', {
@@ -144,6 +145,25 @@ export function useTeamOptions() {
   }, [user, subtree.people, everyone.data])
 
   return { options, isLoading: user?.role === 'owner' ? everyone.isLoading : subtree.isLoading }
+}
+
+/**
+ * Managers who may be made responsible for a service call: the Owner can pick any active manager
+ * (or themself); a Manager can pick themself or a manager in their own reporting line.
+ */
+export function useManagerOptions() {
+  const { user } = useAuth()
+  const subtree = useSubtree()
+  const managers = useVisibleUsers({ role: 'manager', is_active: true, page: 1, page_size: 100 }, user?.role === 'owner')
+  const options = useMemo(() => {
+    if (!user) return []
+    const people = new Map<string, PersonOption>()
+    people.set(user.id, { value: user.id, label: personLabel(user, ' (you)') })
+    const pool = user.role === 'owner' ? (managers.data?.items ?? []) : subtree.people.filter((person) => person.role === 'manager' && person.is_active)
+    for (const person of pool) if (!people.has(person.id)) people.set(person.id, { value: person.id, label: personLabel(person) })
+    return [...people.values()]
+  }, [user, managers.data, subtree.people])
+  return { options, isLoading: user?.role === 'owner' ? managers.isLoading : subtree.isLoading }
 }
 
 /**

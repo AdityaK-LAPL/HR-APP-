@@ -6,8 +6,8 @@ The API it consumes is documented in [`docs/api-contract.md`](../docs/api-contra
 mock mode, and never touches the database.
 
 > Status: foundation + authentication (Prompt 6), the **Employee (7)**, **Manager (8)** and **Owner administration (9)**
-> experiences are real. Full service management, dashboards/reports polish, notifications and PWA polish arrive in
-> Prompts 10-13.
+> experiences and **Service management (10)** are real. Dashboards/reports polish, notifications and PWA polish arrive in
+> Prompts 11-13.
 
 ## Commands
 
