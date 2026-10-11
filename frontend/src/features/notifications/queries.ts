@@ -7,8 +7,9 @@ export type Notification = Schema<'NotificationResponse'>
 
 const POLL_MS = 60_000
 
-export function useNotifications(unreadOnly: boolean) {
+export function useNotifications(unreadOnly: boolean, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['notifications', { unreadOnly }],
     queryFn: ({ signal }) =>
       api.get<Schema<'NotificationListResponse'>>('/notifications', {

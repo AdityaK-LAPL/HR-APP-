@@ -17,9 +17,33 @@ Last updated: 2026-10-10
 | 9 | Frontend: Owner / master administration | **Complete** - see "Frontend Phase 4" below |
 | 10 | Frontend: Service management | **Complete** - see "Frontend Phase 5" below |
 | 11 | Frontend: Dashboards, calendar, search, reporting | **Complete** - see "Frontend Phase 6" below |
-| 12-18 | Notifications, PWA, audits, UAT | Not started |
+| 12 | Frontend: Notification experience | **Complete for what the backend supports** - see "Frontend Phase 7" below (the backend creates no notifications yet) |
+| 13-18 | PWA, audits, UAT | Not started |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
+## Frontend Phase 7: Notification experience (Prompt 12) - 2026-10-11
+
+**What the backend supports (and does not).** The notification API is list, mark one read and mark all read, per recipient. **Nothing in the backend creates a notification** - no task assignment, leave decision, EOD, service call or status change calls it - and there is no create endpoint, no preferences and no delivery channel (email, WhatsApp, push). `type` and `payload` are free-form. So this phase builds the complete *receiving* experience and nothing that would require the backend to behave differently; no generation logic was invented.
+
+**What a person now has (every role, same screens)**
+- **Notification centre in the header:** a bell with the unread count (polled every 60 s and refreshed when the window regains focus) that opens a panel with the latest eight - unread ones marked **New**, a message, a relative time ("5 min ago", "yesterday", then the date) - **Mark all read** (disabled when nothing is unread) and **See all notifications**. The list loads only while the panel is open; the cheap count is always polled. Escape or an outside click closes it (focus returns to the bell).
+- **Opening a notification** marks it read, then goes to the record it names, or to its details when it names none.
+- **Notifications page:** All / Unread, a count in words, read / unread state, **Mark as read** per item, and a **details dialog** (when it arrived and when it was read, the message, the other simple facts, and an "Open the ..." button). Reading the details marks it read; a notification opened from the Unread view stays open after it leaves that view. Deep link `?open=<id>`.
+- **Loading, empty, error:** skeletons, "You have no notifications" / "You are all caught up", the neutral "Not available" screen if the API refuses, and a failing poll never breaks the page.
+- **Privacy:** only the person's own notifications are ever requested; the database and API refuse anyone else's (verified: one person cannot mark another's notification as read).
+
+**Navigation convention (the one assumption, kept explicit).** The contract says not to build deep links from an assumed payload shape, so the UI follows exactly one opt-in convention and never guesses: if `payload.entity_type` is one of `task`, `project`, `service_call`, `eod_report`, `customer`, `machine`, `leave_request` or `user` (the record kinds the API already uses for attachments and the audit trail) **and** `payload.entity_id` is a valid UUID, the notification links to that record (`user` only for managers and the Owner). Any other shape gets no link. Free text comes from `payload.message` (then `title`, `body`); other simple key/values are listed in the details; nested objects are never dumped. This is all in `features/notifications/describe.ts` with tests.
+
+**What the backend must add for notifications to appear (future work, not done here)**
+1. A producer in each service that should notify, writing a row with a stable `type` and the payload convention above: *new task assigned, task changed, leave approved/rejected, new EOD report submitted, service call assigned, service report submitted, service call status changed, project update, important pending action* (the list in context.md section 28).
+2. Decide who is told for each (assignee, responsible manager, approver ...) - a business rule, not a UI one.
+3. Optional later: delivery channels and per-person preferences (not in scope; the first version does not need them).
+Until then the bell shows "no notifications". The UI needs no change when producers arrive.
+
+**Verification:** `tsc -b` clean, oxlint 0 warnings, production build, **349 Vitest tests** (wording, payload facts, navigation convention including refusal of malformed/unknown shapes, relative time, the panel's open / close / Escape / outside-click / empty / error, marking read and navigating, mark all, details, deep link, unread view, an employee never pointed at a person page), backend unchanged, and a **30-check real-browser run** against the live API, with notification rows inserted straight into the test database by a helper (the backend has no way to create them): the unread count from the real API; the panel listing a person's own notifications and none of another person's; opening one marking it read, the count dropping and the task opening; a no-record notification opening its details (nested data not dumped); the full page, Unread filter and counts in words; the details dialog staying open after the item leaves the Unread view; an unrelated person's notification untouchable through the API; a notification created while the app was open appearing on the bell by itself (polling); a manager's service-call and person notifications opening their records; Escape returning focus to the bell; phone layout and tap sizes; and axe-core WCAG A/AA on the panel, page, filter view and details dialog at desktop and phone size - all clean.
+
+**Bug found by the browser run and fixed:** the details dialog stays mounted between openings, and its "mark read once" guard looked at the *previous* notification's successful mutation, so the second notification opened on the same page was never marked read. It now remembers which id it marked; a regression test fails against the old logic.
 
 ## Frontend Phase 6: Dashboards, calendar, search and reporting (Prompt 11) - 2026-10-10
 

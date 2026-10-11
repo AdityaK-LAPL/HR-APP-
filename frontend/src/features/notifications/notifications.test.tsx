@@ -17,13 +17,13 @@ describe('Notifications', () => {
     mockSession(manager)
     server.use(http.get(`${BASE}/notifications`, () => HttpResponse.json({ items: [note()], total: 7 })))
     renderApp('/dashboard')
-    expect(await screen.findByRole('link', { name: 'Notifications, 7 unread' })).toHaveAttribute('href', '/notifications')
+    expect(await screen.findByRole('button', { name: 'Notifications, 7 unread' })).toBeInTheDocument()
   })
 
   it('shows a plain bell when nothing is unread, for every role', async () => {
     mockSession(employee)
     renderApp('/dashboard')
-    expect(await screen.findByRole('link', { name: 'Notifications' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Notifications' })).toBeInTheDocument()
   })
 
   it('lists notifications generically without inventing links', async () => {

@@ -384,3 +384,18 @@
 .sort-btn:hover { text-decoration: underline; }
 .calendar-chip.wrap { white-space: normal; overflow: visible; }
 .calendar-day.week { height: auto; min-height: 160px; }
+
+/* Notification centre */
+.notif-panel { width: min(92vw, 380px); padding: 0; right: 0; left: auto; }
+.notif-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border-default); }
+.notif-list { list-style: none; max-height: min(60vh, 420px); overflow-y: auto; }
+.notif-item { display: grid; gap: 2px; width: 100%; text-align: left; padding: 10px 12px; background: transparent; border: 0; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); cursor: pointer; }
+.notif-item:hover, .notif-item:focus-visible { background: var(--bg-card-hover); }
+.notif-item.unread { background: var(--primary-light); }
+.notif-title { font-weight: 600; font-size: 14px; }
+.notif-message { color: var(--text-secondary); font-size: 13px; }
+.notif-time { color: var(--text-muted); font-size: 12px; }
+.notif-empty { padding: 16px 12px; }
+.notif-foot { padding: 10px 12px; border-top: 1px solid var(--border-default); }
+@media (max-width: 520px) { .notif-panel { position: fixed; left: 8px; right: 8px; top: 64px; width: auto; } }
+.link-btn { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--link); cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
