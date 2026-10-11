@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { useOnlineStatus } from '@/components/feedback/useOnlineStatus'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'ghost'
@@ -7,6 +8,12 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
   block?: boolean
   icon?: ReactNode
+  /**
+   * The action saves something, so it cannot work offline and is disabled until the connection
+   * returns. By default that is every submit button and every primary / danger / success action
+   * (not filter toggles); pass `false` for one that only changes what is shown.
+   */
+  needsConnection?: boolean
 }
 
 export function Button({
@@ -19,8 +26,12 @@ export function Button({
   className = '',
   disabled,
   type = 'button',
+  needsConnection,
   ...props
 }: ButtonProps) {
+  const online = useOnlineStatus()
+  const saves = needsConnection ?? (type === 'submit' || variant === 'danger' || variant === 'success' || (variant === 'primary' && props['aria-pressed'] === undefined))
+  const blocked = saves && !online
   const classes = ['btn', `btn-${variant}`, size !== 'md' && `btn-${size}`, block && 'btn-block', className]
     .filter(Boolean)
     .join(' ')
@@ -28,7 +39,8 @@ export function Button({
     <button
       type={type}
       className={classes}
-      disabled={disabled || loading}
+      disabled={disabled || loading || blocked}
+      title={blocked ? 'Needs a connection' : props.title}
       aria-busy={loading || undefined}
       {...props}
     >

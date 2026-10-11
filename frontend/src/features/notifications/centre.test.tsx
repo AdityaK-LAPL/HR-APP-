@@ -111,7 +111,7 @@ describe('Notification centre (header)', () => {
     renderApp('/dashboard')
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Notifications' }))
     expect(await screen.findByRole('heading', { name: 'Not available' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: /Hello, Erin/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /Hello, Erin/ })).toBeInTheDocument()
   })
 
   it('does not load the list until the panel is opened', async () => {

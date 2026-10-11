@@ -15,8 +15,12 @@ export function createQueryClient(): QueryClient {
         retry: shouldRetry,
         staleTime: 30_000,
         refetchOnWindowFocus: true,
+        // Offline, a request should fail at once and say so (with a Retry), not hang as an endless
+        // skeleton; when the connection returns, stale or failed queries refetch by themselves.
+        networkMode: 'always',
       },
-      mutations: { retry: false },
+      // Never queue a change to replay later: a save is either sent now or refused (see the API client).
+      mutations: { retry: false, networkMode: 'always' },
     },
   })
 }

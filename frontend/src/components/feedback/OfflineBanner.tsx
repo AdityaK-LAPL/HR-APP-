@@ -8,7 +8,9 @@ export function OfflineBanner() {
   return (
     <div className="banner banner-offline" role="status">
       <WifiOff size={16} aria-hidden="true" />
-      <span>You&apos;re offline. You can look around, but saving and loading data need a connection.</span>
+      <span>
+        You&apos;re offline. The app is here, but loading data and saving changes need a connection - buttons that save are switched off until you are back online.
+      </span>
     </div>
   )
 }

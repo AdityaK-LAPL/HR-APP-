@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useReducer, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { ApiError } from '@/api/errors'
 import { setSessionExpiredHandler } from '@/api/client'
 import type { UserProfile } from '@/api/types'
@@ -17,6 +17,8 @@ type Action =
   | { type: 'signed-in'; user: UserProfile }
   | { type: 'signed-out'; notice: string | null }
   | { type: 'expired' }
+  | { type: 'unreachable' }
+  | { type: 'restoring' }
   | { type: 'clear-notice' }
 
 const SESSION_EXPIRED_NOTICE = 'Your session expired. Please sign in again.'
@@ -34,6 +36,11 @@ function reducer(state: State, action: Action): State {
         : state.status === 'loading'
           ? { status: 'anonymous', user: null, notice: null }
           : state
+    case 'unreachable':
+      // Only a cold start can be unreachable; someone already signed in keeps their session.
+      return state.status === 'loading' ? { ...state, status: 'unreachable' } : state
+    case 'restoring':
+      return state.status === 'unreachable' ? { ...state, status: 'loading' } : state
     case 'clear-notice':
       return state.notice === null ? state : { ...state, notice: null }
   }
@@ -45,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const channel = useRef(createSessionChannel())
 
   // Restore the session from the httpOnly cookies (nothing identity-related lives in storage).
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     const controller = new AbortController()
     authApi
@@ -52,12 +60,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((user) => dispatch({ type: 'signed-in', user }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        // 401 (no/expired session) and network failures both land on the login screen.
+        // A 401 means there is no session. A server we could not reach - or one that is failing -
+        // says nothing about the session: an installed app opened offline, or during an outage,
+        // must not behave as if the user signed out.
+        if (error instanceof ApiError && (error.isNetworkError || error.status >= 500)) {
+          dispatch({ type: 'unreachable' })
+          return
+        }
         if (!(error instanceof ApiError)) console.error(error)
         dispatch({ type: 'signed-out', notice: null })
       })
     return () => controller.abort()
+  }, [attempt])
+
+  const retrySession = useCallback(() => {
+    dispatch({ type: 'restoring' })
+    setAttempt((n) => n + 1)
   }, [])
+
+  // The moment the connection returns, try again by itself; the timer covers
+  // browsers that never fire 'online' (a server that was merely down).
+  useEffect(() => {
+    if (state.status !== 'unreachable') return
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === 'visible') retrySession()
+    }, 20_000)
+    window.addEventListener('online', retrySession)
+    return () => {
+      window.clearInterval(poll)
+      window.removeEventListener('online', retrySession)
+    }
+  }, [state.status, retrySession])
 
   // A failed refresh anywhere in the app ends the session.
   useEffect(() => {
@@ -116,8 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearNotice = useCallback(() => dispatch({ type: 'clear-notice' }), [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, login, logout, changePassword, clearNotice }),
-    [state, login, logout, changePassword, clearNotice],
+    () => ({ ...state, login, logout, changePassword, clearNotice, retrySession }),
+    [state, login, logout, changePassword, clearNotice, retrySession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

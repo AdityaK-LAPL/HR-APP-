@@ -2,7 +2,8 @@ import { createContext, useContext } from 'react'
 import type { UserProfile } from '@/api/types'
 import type { ChangePasswordInput, LoginInput } from './authApi'
 
-export type AuthStatus = 'loading' | 'authenticated' | 'anonymous'
+/** `unreachable`: the server could not be reached while restoring the session - NOT the same as signed out. */
+export type AuthStatus = 'loading' | 'authenticated' | 'anonymous' | 'unreachable'
 
 export interface AuthContextValue {
   status: AuthStatus
@@ -15,6 +16,8 @@ export interface AuthContextValue {
   /** Changes the password; the server revokes every session, so this signs the user out. */
   changePassword: (input: ChangePasswordInput) => Promise<void>
   clearNotice: () => void
+  /** Try to restore the session again (after the connection came back). */
+  retrySession: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)

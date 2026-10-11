@@ -15,6 +15,7 @@
     "check:api": "./node_modules/.bin/openapi-typescript ../docs/openapi.json -o /tmp/hr-schema-check.d.ts && diff -q src/api/schema.d.ts /tmp/hr-schema-check.d.ts"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@tanstack/react-query": "^5.104.1",
     "lucide-react": "^1.47.0",
     "react": "^19.2.8",

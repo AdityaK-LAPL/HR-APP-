@@ -17,6 +17,7 @@ import { ApiError, errorFromResponse, networkError } from './errors'
 
 export const API_BASE: string = import.meta.env.VITE_API_BASE ?? '/api/v1'
 const TIMEOUT_MS = 30_000
+export const OFFLINE_MESSAGE = "You're offline. Reconnect to save this change - nothing was sent."
 
 type QueryValue = string | number | boolean | null | undefined
 export type Query = Record<string, QueryValue | readonly QueryValue[]>
@@ -130,6 +131,12 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  // A change is never attempted - or queued for later - without a connection: the person is told
+  // instead, and decides again when they are back online. (`navigator.onLine` is only a hint, so
+  // a failure while it says "online" is still reported as a network error by `send`.)
+  if (MUTATING.has(method) && typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw networkError(OFFLINE_MESSAGE)
+  }
   let response = await send(method, path, options)
 
   if (response.status === 401 && !options.skipRefresh) {

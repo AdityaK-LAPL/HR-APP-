@@ -399,3 +399,12 @@
 .notif-foot { padding: 10px 12px; border-top: 1px solid var(--border-default); }
 @media (max-width: 520px) { .notif-panel { position: fixed; left: 8px; right: 8px; top: 64px; width: auto; } }
 .link-btn { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--link); cursor: pointer; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Touch screens: every control gets a 44px target (small variants stay compact for mouse and keyboard). */
+@media (pointer: coarse) {
+  .btn-sm, .icon-btn, .segmented-item, .sort-btn, .hbar-table summary, .link-btn { min-height: 44px; }
+  .icon-btn { min-width: 44px; }
+  /* inside a day cell there is no room to grow the link, so grow its hit area instead */
+  .calendar-more { position: relative; }
+  .calendar-more::after { content: ''; position: absolute; inset: -13px -6px; }
+}

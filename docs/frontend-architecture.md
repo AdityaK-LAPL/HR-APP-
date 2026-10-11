@@ -169,6 +169,8 @@ Vitest + RTL + MSW handlers generated from the same typed schema. Priorities: (1
 
 Keep `vite-plugin-pwa` (`generateSW`). Changes: **`registerType: 'prompt'`** (show "Update available — reload" so a deploy never reloads a half-filled form); precache the app shell only; `navigateFallback: '/index.html'` excluding `/api/`; **`/api/*` is `NetworkOnly`** (never cache authenticated data in the service worker); add 192/512 **PNG** + maskable + Apple touch icons (SVG-only icons fail on iOS/some Android installers); manifest `id`, `lang`, `categories`; the install banner stays. Offline = cached shell + clear offline state + disabled mutations (§6). No claim of offline business functionality.
 
+**Implemented in Prompt 13** (see `development-status.md`, Frontend Phase 8): the service worker registers on every page; session restore distinguishes network/5xx failure (`unreachable`: cached shell, still signed in, retry) from a refused session; `Button` disables saving actions offline; the API client refuses mutations offline; queries use `networkMode: 'always'`; fonts are bundled. Not done by design: offline data, queued mutations, background sync, push.
+
 ## 14. Security notes
 
 No `dangerouslySetInnerHTML`; all text rendered as text; file uploads validated client-side for size/extension as UX only (server is the authority: 25 MB, extension and magic-byte checks); no tokens/PII in browser storage; CSP and security headers specified for deployment in Prompt 17; remove demo credentials; error messages shown to users are the server's generic messages.

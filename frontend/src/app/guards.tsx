@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/features/auth/authContext'
 import { PageSpinner } from '@/components/feedback/PageSpinner'
+import { ServerUnreachable } from '@/components/feedback/ServerUnreachable'
 import { NotAvailablePage } from '@/pages/NotAvailablePage'
 import type { Role } from '@/api/types'
 
@@ -9,10 +10,11 @@ import type { Role } from '@/api/types'
  * reach nothing else: the server enforces this too (403 password_change_required).
  */
 export function RequireAuth() {
-  const { status, user } = useAuth()
+  const { status, user, retrySession } = useAuth()
   const location = useLocation()
 
   if (status === 'loading') return <PageSpinner label="Restoring your session…" />
+  if (status === 'unreachable') return <ServerUnreachable onRetry={retrySession} />
   if (status === 'anonymous' || !user) {
     // Remember where they were going - except the password screen: after changing a password you
     // sign in again and should land in the app, not back on the form you just completed.
