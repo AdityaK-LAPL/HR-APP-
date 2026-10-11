@@ -10,6 +10,8 @@ import { useAuth } from '@/features/auth/authContext'
 import { useCompanyToday } from '@/features/config/useCompanyToday'
 import { useLeaves } from '@/features/leave/queries'
 import { usePeople } from '@/features/people/usePeople'
+import { StatusBars } from '@/features/reports/StatusBars'
+import { useLeaveOn } from '@/features/reports/queries'
 import { useTasks } from '@/features/tasks/queries'
 import { countOf, useServiceSummary, useSubtree, useTaskSummary, useWorkload } from '@/features/team/queries'
 import { formatDate, inclusiveDays } from '@/lib/dates'
@@ -29,6 +31,7 @@ export function ManagerDashboard() {
   const today = useCompanyToday()
   const subtree = useSubtree()
   const taskSummary = useTaskSummary()
+  const onLeave = useLeaveOn(today)
   const serviceSummary = useServiceSummary()
   const pendingLeave = useLeaves({ status: 'pending', page: 1, page_size: 20 })
   const punched = useTeamAttendance({ start_date: today, end_date: today, page: 1, page_size: 1 })
@@ -49,6 +52,7 @@ export function ManagerDashboard() {
     ...waitingForMe.map((leave) => leave.employee_id),
     ...(blocked.data?.items ?? []).map((task) => task.assigned_to),
     ...busiest.map((row) => row.user_id),
+    ...(onLeave.data ?? []).map((leave) => leave.employee_id),
   ])
 
   return (
@@ -63,6 +67,30 @@ export function ManagerDashboard() {
         <StatTile to="/attendance" value={punched.data ? `${punched.data.total} / ${expected}` : undefined} label="Punched in today" />
         <StatTile to="/service" value={countOf(serviceSummary.data?.by_status, ...ACTIVE_CALL_STATUSES)} label="Active service calls" />
       </div>
+
+
+      <Section title="On leave today" action={<Link to="/calendar?show=leave">Leave calendar</Link>}>
+        <QueryBoundary query={onLeave} skeleton={<Skeleton height={40} />} isEmpty={(rows) => rows.length === 0} empty={<p>Nobody is on approved leave today.</p>}>
+          {(rows) => (
+            <ul style={{ listStyle: 'none' }} className="stack">
+              {rows.map((leave) => (
+                <li key={leave.id} className="meta-line" style={{ justifyContent: 'space-between' }}>
+                  <Link to={`/users/${leave.employee_id}`}>{leave.employee_id === user?.id ? 'You' : nameOf(leave.employee_id, '…')}</Link>
+                  <span>
+                    back after {formatDate(leave.end_date)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </QueryBoundary>
+      </Section>
+
+      <Section title="Tasks by status" action={<Link to="/reports">Reports</Link>}>
+        <QueryBoundary query={taskSummary} skeleton={<Skeleton height={60} />}>
+          {(data) => <StatusBars title="Tasks by status" rows={data.by_status} table={TASK_STATUS} unit="tasks" emphasise="blocked" empty="No tasks yet." />}
+        </QueryBoundary>
+      </Section>
 
       <PunchCard />
 

@@ -6,6 +6,7 @@ import { RecordList, type Column } from '@/components/data/RecordList'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
+import { RangePresets } from '@/components/ui/RangePresets'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Select } from '@/components/ui/fields'
@@ -99,6 +100,7 @@ export function TeamAttendancePage() {
               options={people.options}
               placeholder="Everyone"
             />
+            <RangePresets today={today} from={from} to={to} onChange={(a, b) => setParams({ from: a, to: b })} />
             <Input label="From" type="date" value={from} onChange={(event) => setParams({ from: event.target.value })} />
             <Input label="To" type="date" value={to} min={from} onChange={(event) => setParams({ to: event.target.value })} />
             {(params.from || params.to || params.person) && (

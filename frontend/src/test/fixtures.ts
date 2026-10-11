@@ -83,6 +83,8 @@ export function mockEmployeeData() {
     http.get(`${BASE}/service-calls`, () => HttpResponse.json(list([]))),
     http.get(`${BASE}/attachments`, () => HttpResponse.json({ items: [] })),
     http.get(`${BASE}/notifications`, () => HttpResponse.json({ items: [], total: 0 })),
+    http.get(`${BASE}/customers`, () => HttpResponse.json(list([]))),
+    http.get(`${BASE}/machines`, () => HttpResponse.json(list([]))),
   )
 }
 

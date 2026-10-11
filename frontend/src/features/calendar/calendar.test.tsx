@@ -116,3 +116,81 @@ describe('Team calendar', () => {
     expect(await screen.findByRole('heading', { name: 'Not available' })).toBeInTheDocument()
   })
 })
+
+describe('Calendar views', () => {
+  const leaveEntry = { entry_date: '2026-03-04', entry_type: 'leave', user_id: 'e-2', title: 'Leave (approved)', status: 'approved' }
+  const approvedLeave = { id: 'l-1', employee_id: 'e-2', start_date: '2026-03-04', end_date: '2026-03-06', reason: null, status: 'approved', current_approver_id: null, created_at: '', updated_at: '' }
+
+  function setupViews(extra: Parameters<typeof server.use> = []) {
+    setup([
+      ...extra,
+      http.get(`${BASE}/calendar`, () => HttpResponse.json({ items: [leaveEntry, entries[0]!] })),
+      http.get(`${BASE}/leaves`, ({ request }) => HttpResponse.json(list(new URL(request.url).searchParams.get('status') === 'approved' ? [approvedLeave] : []))),
+    ])
+  }
+
+  it('shows a multi-day leave on every day it covers (the API reports only its first day)', async () => {
+    setupViews()
+    renderApp('/calendar')
+    const grid = within(await screen.findByRole('table'))
+    await waitFor(() => expect(grid.getAllByText('Eli Engineer · leave')).toHaveLength(3)) // 4, 5 and 6 March
+  })
+
+  it('keeps a leave it cannot match to a request on its first day only', async () => {
+    setup([http.get(`${BASE}/calendar`, () => HttpResponse.json({ items: [leaveEntry] })), http.get(`${BASE}/leaves`, () => HttpResponse.json(list([])))])
+    renderApp('/calendar')
+    const grid = within(await screen.findByRole('table'))
+    await grid.findByText('Eli Engineer · leave')
+    expect(grid.getAllByText('Eli Engineer · leave')).toHaveLength(1)
+  })
+
+  it('can show tasks only or leave only', async () => {
+    setupViews()
+    renderApp('/calendar')
+    const user = userEvent.setup()
+    const grid = within(await screen.findByRole('table'))
+    await grid.findByText('Erin Employee · Calibrate press line 3')
+    await user.click(screen.getByRole('button', { name: 'Leave' }))
+    await waitFor(() => expect(grid.queryByText('Erin Employee · Calibrate press line 3')).not.toBeInTheDocument())
+    expect(grid.getAllByText('Eli Engineer · leave').length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: 'Tasks' }))
+    await waitFor(() => expect(grid.queryByText('Eli Engineer · leave')).not.toBeInTheDocument())
+    expect(grid.getByText('Erin Employee · Calibrate press line 3')).toBeInTheDocument()
+  })
+
+  it('has a week view with its own navigation, asking the API for exactly that week', async () => {
+    const seen = spy()
+    setupViews([http.get(`${BASE}/calendar`, async ({ request }) => { await seen.record(request); return HttpResponse.json({ items: [] }) })])
+    renderApp('/calendar')
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Week' }))
+    // 5 March 2026 is a Thursday: the week is Monday 2 - Sunday 8 March
+    await waitFor(() => {
+      const q = seen.seen.at(-1)?.url.searchParams
+      expect(q?.get('start_date')).toBe('2026-03-02')
+      expect(q?.get('end_date')).toBe('2026-03-08')
+    })
+    await user.click(screen.getByRole('button', { name: 'Next week' }))
+    await waitFor(() => expect(seen.seen.at(-1)?.url.searchParams.get('start_date')).toBe('2026-03-09'))
+    expect(await screen.findByRole('heading', { level: 2, name: '09 Mar 2026 – 15 Mar 2026' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'This week' }))
+    expect(await screen.findByRole('heading', { level: 2, name: '02 Mar 2026 – 08 Mar 2026' })).toBeInTheDocument()
+  })
+
+  it('has a list view that groups entries by day', async () => {
+    setupViews()
+    renderApp('/calendar?view=list')
+    const list_ = await screen.findByRole('list', { name: 'Entries in March 2026' })
+    expect(within(list_).getByText('05 Mar 2026 · today')).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
+  it('gives an employee their own calendar, without people or team filters', async () => {
+    mockSession(employee)
+    server.use(http.get(`${BASE}/calendar`, () => HttpResponse.json({ items: [entries[0]!] })), http.get(`${BASE}/leaves`, () => HttpResponse.json(list([]))))
+    renderApp('/calendar')
+    expect(await screen.findByRole('heading', { level: 1, name: 'My calendar' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Person')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Team')).not.toBeInTheDocument()
+  })
+})

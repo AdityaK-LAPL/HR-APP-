@@ -28,17 +28,17 @@ describe('Manager navigation', () => {
     setup()
     renderApp('/dashboard')
     const nav = within(await screen.findByRole('navigation', { name: 'Main menu' }))
-    for (const name of ['Team overview', 'Team tasks', 'Team attendance', 'Leave approvals', 'EOD reports', 'Projects', 'Service calls', 'Customers', 'Machines', 'Team calendar', 'My team']) {
+    for (const name of ['Team overview', 'Team tasks', 'Team attendance', 'Leave approvals', 'EOD reports', 'Projects', 'Service calls', 'Customers', 'Machines', 'Team calendar', 'Reports', 'My team']) {
       expect(nav.getByRole('link', { name })).toBeInTheDocument()
     }
-    for (const name of ['Permissions', 'Audit trail', 'Reports', 'Users & hierarchy']) {
+    for (const name of ['Permissions', 'Audit trail', 'Users & hierarchy']) {
       expect(nav.queryByRole('link', { name })).not.toBeInTheDocument()
     }
   })
 
   it('does not give employees the manager screens', async () => {
     mockSession(employee)
-    renderApp('/calendar')
+    renderApp('/reports')
     expect(await screen.findByRole('heading', { name: 'Not available' })).toBeInTheDocument()
   })
 

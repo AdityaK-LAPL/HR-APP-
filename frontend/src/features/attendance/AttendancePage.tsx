@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/Input'
+import { RangePresets } from '@/components/ui/RangePresets'
+import { useCompanyToday } from '@/features/config/useCompanyToday'
 import { PageHeader, Section } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuth } from '@/features/auth/authContext'
@@ -42,6 +44,7 @@ export function EventsDialog({ userId, date, onClose }: { userId: string; date: 
 /** The signed-in person's own punch card and history. */
 export function MyAttendance() {
   const { user } = useAuth()
+  const today = useCompanyToday()
   const [params, setParams] = useUrlParams({ from: '', to: '', page: '1' })
   const page = pageNumber(params.page)
   const query = useAttendanceHistory(user?.id, {
@@ -74,6 +77,7 @@ export function MyAttendance() {
       <PunchCard />
       <Section title="History">
         <div className="toolbar">
+          <RangePresets today={today} from={params.from} to={params.to || ''} onChange={(a, b) => setParams({ from: a, to: b })} />
           <Input label="From" type="date" value={params.from} onChange={(e) => setParams({ from: e.target.value })} />
           <Input label="To" type="date" value={params.to} onChange={(e) => setParams({ to: e.target.value })} />
           {(params.from || params.to) && (

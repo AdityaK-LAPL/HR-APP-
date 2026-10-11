@@ -34,9 +34,9 @@ const SCREENS: Record<string, RoleScreens> = {
   service: everyone(<Screen.ServiceListPage />),
   customers: everyone(<Screen.CustomersPage />),
   machines: everyone(<Screen.MachinesPage />),
-  calendar: { manager: <Screen.CalendarPage />, owner: <Screen.CalendarPage /> },
+  calendar: everyone(<Screen.CalendarPage />),
   users: { manager: <Screen.TeamPage />, owner: <Screen.TeamPage /> },
-  reports: { owner: <Screen.ReportsPage /> },
+  reports: { owner: <Screen.ReportsPage />, manager: <Screen.ReportsPage /> },
   permissions: { owner: <Screen.PermissionsPage /> },
   'audit-logs': { owner: <Screen.AuditLogsPage /> },
 }
@@ -70,6 +70,7 @@ const detailRoutes: RouteObject[] = [
   roleRoute('customers/:id', 'Customer', everyone(<Screen.CustomerDetailPage />)),
   roleRoute('machines/:id', 'Machine', everyone(<Screen.MachineDetailPage />)),
   roleRoute('users/:id', 'Person', { manager: <Screen.PersonPage />, owner: <Screen.PersonPage /> }),
+  roleRoute('search', 'Search', everyone(<Screen.SearchPage />)),
   {
     path: 'notifications',
     handle: handle('Notifications'),

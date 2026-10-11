@@ -362,3 +362,25 @@
 .workflow li.done { color: var(--text-primary); }
 .workflow li.done svg { color: #34d399; }
 .workflow li.next { color: var(--text-primary); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Horizontal bar chart: one baseline, thin marks, value at the tip, recessive chrome */
+.hbar { margin: 0; }
+.hbar-rows { list-style: none; display: grid; gap: 10px; }
+.hbar-row { display: grid; grid-template-columns: minmax(96px, 30%) 1fr minmax(48px, auto); align-items: center; gap: 12px; }
+.hbar-label { color: var(--text-secondary); font-size: 13px; overflow-wrap: anywhere; }
+.hbar-track { display: block; height: 20px; border-left: 1px solid var(--border-default); }
+.hbar-bar { display: block; height: 20px; background: #3987e5; border-radius: 0 4px 4px 0; }
+.hbar-bar.emphasis { background: #d95926; }
+.hbar-value { color: var(--text-primary); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.hbar-share { color: var(--text-muted); }
+.hbar-table { margin-top: 10px; }
+.hbar-table summary { cursor: pointer; font-size: 13px; color: var(--link); min-height: 28px; }
+.hbar-table[open] summary { margin-bottom: 8px; }
+@media (max-width: 520px) { .hbar-row { grid-template-columns: 1fr auto; } .hbar-track { grid-column: 1 / -1; order: 3; } }
+@media (forced-colors: active) { .hbar-bar { background: CanvasText; } .hbar-bar.emphasis { background: Highlight; } }
+
+/* Sortable table headers */
+.sort-btn { background: none; border: 0; padding: 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: 28px; }
+.sort-btn:hover { text-decoration: underline; }
+.calendar-chip.wrap { white-space: normal; overflow: visible; }
+.calendar-day.week { height: auto; min-height: 160px; }

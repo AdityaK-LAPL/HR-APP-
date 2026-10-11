@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=5)
     db_max_overflow: int = Field(default=2)
 
+    # A connection the pooler silently stalls would otherwise leave a request waiting forever
+    # (asyncpg has no default timeout). With these, a stalled query fails after
+    # `db_command_timeout_seconds` (the request answers 500 and the client may retry) and a
+    # connection attempt gives up after `db_connect_timeout_seconds`.
+    db_command_timeout_seconds: float = Field(default=60.0)
+    db_connect_timeout_seconds: float = Field(default=30.0)
+
     # The database role each request's transaction switches to (SET LOCAL ROLE
     # semantics, via set_config('role', ..., true)). It must be NOBYPASSRLS so
     # PostgreSQL RLS applies to application queries - the connecting role

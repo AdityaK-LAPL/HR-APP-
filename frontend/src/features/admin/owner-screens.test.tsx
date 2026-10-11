@@ -192,12 +192,15 @@ describe('Reports (Owner)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Reports' })).toBeInTheDocument()
     const attendance = within(await screen.findByRole('table', { name: 'Attendance per person' }))
     const first = attendance.getAllByRole('row')[1]!
+    // the chart above the table carries the same numbers
+    expect(screen.getByRole('figure', { name: 'Days present per person' })).toBeInTheDocument()
     expect(await within(first).findByText('Manny Manager')).toBeInTheDocument() // most days present first
     expect(within(first).getByText('7')).toBeInTheDocument()
     expect(within(first).getByText('50h 00m')).toBeInTheDocument() // 3000 min
     expect(attendance.getAllByText('8h 00m').length).toBeGreaterThan(0) // Erin: 2400 / 5 days = 480 min average
-    const tasks = within(await screen.findAllByRole('table', { name: 'Counts by status' }).then((all) => all[0]!))
-    expect(tasks.getByText('Completed')).toBeInTheDocument()
+    const tasks = within(await screen.findByRole('figure', { name: 'Tasks by status' }))
+    expect(tasks.getByText('Completed', { selector: '.hbar-label' })).toBeInTheDocument()
+    expect(tasks.getByText('3', { selector: '.hbar-value' })).toBeInTheDocument()
     expect(screen.getByText(/average time to resolve about 2h 30m/)).toBeInTheDocument()
     expect(within(screen.getByRole('table', { name: 'Open work per person' })).getByText('2')).toBeInTheDocument()
   })
@@ -219,9 +222,11 @@ describe('Reports (Owner)', () => {
     await waitFor(() => expect(svc.seen.at(-1)?.url.searchParams.get('manager_id')).toBe(manager.id))
   })
 
-  it('is not offered to managers yet', async () => {
+  it('managers get the same reports, scoped by the API', async () => {
+    setupReports()
     mockSession(manager)
     renderApp('/reports')
-    expect(await screen.findByRole('heading', { name: 'Not available' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Reports' })).toBeInTheDocument()
+    expect(screen.getByText(/Figures for your team/)).toBeInTheDocument()
   })
 })

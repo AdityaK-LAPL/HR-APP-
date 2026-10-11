@@ -1,5 +1,7 @@
 import { useMatches } from 'react-router-dom'
 import type { RouteHandle } from '@/app/route-config'
+import { Search } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { NotificationBell } from './NotificationBell'
 import { UserMenu } from './UserMenu'
 
@@ -15,6 +17,9 @@ export function Header() {
         <p className="app-header-title">{handle?.title ?? 'OpsFlow'}</p>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Link to="/search" className="icon-btn bell" aria-label="Search everything">
+          <Search size={20} aria-hidden="true" />
+        </Link>
         <NotificationBell />
         <UserMenu />
       </div>

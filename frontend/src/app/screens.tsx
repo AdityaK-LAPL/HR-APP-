@@ -33,6 +33,7 @@ export const OwnerDashboard = named(() => import('@/features/dashboard/OwnerDash
 export const PermissionsPage = named(() => import('@/features/admin/PermissionsPage'), 'PermissionsPage')
 export const AuditLogsPage = named(() => import('@/features/admin/AuditLogsPage'), 'AuditLogsPage')
 export const ReportsPage = named(() => import('@/features/admin/ReportsPage'), 'ReportsPage')
+export const SearchPage = named(() => import('@/features/search/SearchPage'), 'SearchPage')
 export const ProfilePage = named(() => import('@/features/profile/ProfilePage'), 'ProfilePage')
 export const FoundationDashboard = named(() => import('@/pages/DashboardPage'), 'DashboardPage')
 export const ModulePlaceholderPage = named(() => import('@/pages/ModulePlaceholderPage'), 'ModulePlaceholderPage')
