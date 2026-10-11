@@ -40,6 +40,33 @@ describe('CSRF', () => {
   })
 })
 
+describe('double submits', () => {
+  it('sends an identical change that is already in flight only once, and shares its answer', async () => {
+    let hits = 0
+    server.use(
+      http.post(`${BASE}/leaves`, async () => {
+        hits += 1
+        await new Promise((resolve) => setTimeout(resolve, 30))
+        return HttpResponse.json({ id: 'L1' }, { status: 201 })
+      }),
+    )
+    const [first, second] = await Promise.all([api.post('/leaves', { reason: 'x' }), api.post('/leaves', { reason: 'x' })])
+    expect(hits).toBe(1)
+    expect(second).toEqual(first)
+    // once answered, the same change may be sent again; a different change is never merged
+    await api.post('/leaves', { reason: 'x' })
+    await Promise.all([api.post('/leaves', { reason: 'x' }), api.post('/leaves', { reason: 'y' })])
+    expect(hits).toBe(4)
+  })
+
+  it('never merges reads', async () => {
+    let hits = 0
+    server.use(http.get(`${BASE}/thing`, () => { hits += 1; return HttpResponse.json({}) }))
+    await Promise.all([api.get('/thing'), api.get('/thing')])
+    expect(hits).toBe(2)
+  })
+})
+
 describe('errors', () => {
   it('maps the API error shape, including per-field details and the request id', async () => {
     server.use(

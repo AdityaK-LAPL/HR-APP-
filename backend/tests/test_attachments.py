@@ -107,6 +107,23 @@ async def test_content_extension_mismatch_rejected(client, db_session):
     assert response.status_code == 422
 
 
+async def test_executable_renamed_to_an_image_is_rejected(client, db_session):
+    owner = await make_user(db_session, employee_code="OWN805", name="Owner", role="owner")
+    headers = await login(client, employee_code="OWN805", password="InitialPass123!")
+    task_resp = await client.post(
+        "/api/v1/tasks", json={"title": "Task", "assigned_to": str(owner.id)}, headers=headers
+    )
+    data = {"entity_type": "task", "entity_id": task_resp.json()["id"]}
+    # no known signature at all, but a type that must have one
+    files = {"file": ("evil.png", io.BytesIO(b"MZ\x90\x00 not an image"), "image/png")}
+    response = await client.post("/api/v1/attachments", data=data, files=files, headers=headers)
+    assert response.status_code == 422
+    # plain text has no signature and stays allowed
+    files = {"file": ("notes.txt", io.BytesIO(b"just notes"), "text/plain")}
+    response = await client.post("/api/v1/attachments", data=data, files=files, headers=headers)
+    assert response.status_code == 201
+
+
 async def test_upload_download_and_delete_roundtrip(client, db_session):
     owner = await make_user(db_session, employee_code="OWN804", name="Owner", role="owner")
     employee = await make_user(

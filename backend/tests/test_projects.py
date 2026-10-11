@@ -209,3 +209,33 @@ async def test_project_member_can_view_but_not_modify(client, db_session):
         f"/api/v1/projects/{project_id}", json={"name": "Hijacked"}, headers=e_headers
     )
     assert modify_response.status_code == 403
+
+
+async def test_the_same_grant_cannot_be_created_twice(client, db_session):
+    owner = await make_user(db_session, employee_code="OWN391", name="Owner", role="owner")
+    manager = await make_user(
+        db_session, employee_code="MGR392", name="Manager", role="manager", manager_id=owner.id
+    )
+    owner_headers = await login(client, employee_code="OWN391", password="InitialPass123!")
+    grant = {
+        "grantee_user_id": str(manager.id),
+        "permission_key": "create_project",
+        "scope_type": "global",
+        "effect": "allow",
+    }
+    first = await client.post("/api/v1/permissions/grants", json=grant, headers=owner_headers)
+    assert first.status_code == 201
+    again = await client.post("/api/v1/permissions/grants", json=grant, headers=owner_headers)
+    assert again.status_code == 409
+
+    # the opposite effect is a different grant, and once revoked the same one can be re-created
+    deny = await client.post(
+        "/api/v1/permissions/grants", json={**grant, "effect": "deny"}, headers=owner_headers
+    )
+    assert deny.status_code == 201
+    revoke = await client.delete(
+        f"/api/v1/permissions/grants/{first.json()['id']}", headers=owner_headers
+    )
+    assert revoke.status_code == 204
+    recreated = await client.post("/api/v1/permissions/grants", json=grant, headers=owner_headers)
+    assert recreated.status_code == 201

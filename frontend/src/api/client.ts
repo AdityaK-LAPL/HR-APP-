@@ -126,11 +126,25 @@ async function send(method: Method, path: string, options: RequestOptions): Prom
   }
 }
 
-export async function request<T>(
-  method: Method,
-  path: string,
-  options: RequestOptions = {},
-): Promise<T> {
+const mutationsInFlight = new Map<string, Promise<unknown>>()
+
+/**
+ * A change that is already on its way is not sent a second time: a double-click, a double-tap or
+ * Enter plus a click arrive as two identical requests before the first has answered, and would
+ * otherwise create two leave requests, two tasks and so on. Both callers share the one response.
+ * (Uploads are exempt - each is its own file.)
+ */
+export function request<T>(method: Method, path: string, options: RequestOptions = {}): Promise<T> {
+  if (!MUTATING.has(method) || options.form) return perform<T>(method, path, options)
+  const key = `${method} ${buildUrl(path, options.query)} ${JSON.stringify(options.body ?? null)}`
+  const running = mutationsInFlight.get(key)
+  if (running) return running as Promise<T>
+  const call = perform<T>(method, path, options).finally(() => mutationsInFlight.delete(key))
+  mutationsInFlight.set(key, call)
+  return call
+}
+
+async function perform<T>(method: Method, path: string, options: RequestOptions): Promise<T> {
   // A change is never attempted - or queued for later - without a connection: the person is told
   // instead, and decides again when they are back online. (`navigator.onLine` is only a hint, so
   // a failure while it says "online" is still reported as a network error by `send`.)

@@ -19,9 +19,54 @@ Last updated: 2026-10-11
 | 11 | Frontend: Dashboards, calendar, search, reporting | **Complete** - see "Frontend Phase 6" below |
 | 12 | Frontend: Notification experience | **Complete for what the backend supports** - see "Frontend Phase 7" below (the backend creates no notifications yet) |
 | 13 | Frontend: PWA and cross-platform experience | **Complete** - see "Frontend Phase 8" below (no offline business functionality, by design) |
-| 14-18 | Testing, audits, UAT | Not started |
+| 14 | Frontend <-> backend integration audit | **Complete** - see "Frontend Phase 9" below (2 backend fixes, 2 frontend fixes, 303-check audit now kept in `frontend/e2e/`) |
+| 15-18 | UI/UX pass, final audits, UAT | Not started |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
+## Frontend Phase 9: Frontend <-> backend integration audit (Prompt 14) - 2026-10-11
+
+Tested as real users against the **production build** and the **live API and database** (nothing mocked), role by role: an Owner, two peer Managers (Alice, Bob) each with their own employees, and Employees in both branches. The audits are kept in the repository (`frontend/e2e/`, see its README; `npm run e2e:api`, `npm run e2e:ui`) - Playwright and axe-core are now dev dependencies.
+
+### Workflow test matrix
+
+| Area | Owner | Manager | Employee | Result |
+|---|---|---|---|---|
+| **Authentication**: login, wrong password / unknown ID (same message), empty and malformed input, SQL-style input, httpOnly cookies, CSRF missing/forged, refresh rotation and replay of an old refresh token, expired access token renewed silently, tampered token, logout (and the other tab signs out), protected routes and return to the requested page, F5 on a signed-in page, back/forward, forced password change, deactivated account, admin reset | yes | yes | yes | 42 API + 15 UI pass |
+| **Tasks**: list/open/status/history/edit/reassign/assign, attachments (upload, download, remove, bad type, executable renamed to .png) | all branches | own branch | own only | pass |
+| **Projects**: create, edit, members, archive/restore, project-scoped grant | yes | own + granted | member of only | pass |
+| **Leave**: apply, cancel, approve, reject (reason required), double decision, own leave, leave of the other branch | decides any | decides own branch | own only | pass |
+| **EOD**: submit (empty refused), team/company lists | company | own branch | own only | pass |
+| **Attendance**: punch in with location, punch out (confirmed), second punch refused, team lists, punch events | company | own branch | own only | pass |
+| **Service**: customer / machine / call, assign, visit, report, review, log a call | any | own calls | assigned calls only | pass |
+| **People / hierarchy / permissions / audit / reports / calendar** | create, role, manager, deactivate/reactivate, loop refused, grants (allow/deny/project-scoped, revoke, duplicate refused), audit trail with filter and details, company reports | own team, edit profile, reset password, team reports and calendar | none (menu and routes hidden, API 403) | pass |
+| **Security**: employee -> manager/owner pages, manager -> owner pages, manager A -> manager B's data (people, tasks, projects, leave, EOD, attendance, punch events, service, customers, machines, attachments, hierarchy, password reset), employee -> another employee's data, privilege escalation by `PATCH`, unauthenticated calls, malformed ids, hidden-by-URL screens | | | | **90 API + 23 UI checks pass**; every refusal is a clean 403/404 and no refused screen leaks data |
+| **Devices**: desktop 1366, tablet portrait 768 and landscape 1024, Android 412 and 360, iPhone 390 - each role, 9-12 screens each | | | | no horizontal scroll, correct navigation (side menu / bottom tabs), cards on phones, **axe-core WCAG A/AA clean**, 44 px touch targets: 78 checks pass |
+| **Network**: slow 3G, a drop while a form is open, reconnect, server 500 and 502, a cut connection, the installed app offline | | | yes | 7 checks pass |
+
+Totals: **227 API checks** (Authentication 42, Employee 37, Manager 29, Owner 29, Security 90) and **176 browser checks** (Authentication 15, Employee 19, Manager 19, Owner 15, Security 23, Network 7, Layout 78) - all passing in their final runs, with no unexpected browser-console errors.
+
+### Failures found, and the layer that was wrong
+
+| # | Finding | Wrong layer | Fix |
+|---|---|---|---|
+| 1 | `POST /permissions/grants` accepted the **same grant twice**. The Owner screen hid this with a client-side check, but the API did not, so a revoke removed only one copy and the manager **kept the access** | **Backend** | Identical active grant (person, permission, scope, effect) now returns `409`; test added; contract updated. The Owner screen already shows the message |
+| 2 | An **executable renamed to `.png`** was accepted: the content check only refused content that matched a *different* known signature | **Backend** | Types that have a signature (pdf, png, jpg, gif, webp, docx, xlsx) must carry it; txt/csv/doc/xls stay accepted on extension; test added; contract updated |
+| 3 | A **double-click, double-tap or Enter + click on a submit button sent the request twice** (two leave requests, two tasks ...) because form validation is asynchronous | **Frontend** | The API client shares one in-flight response between identical changes (uploads exempt); unit tests; verified in the browser on slow 3G (one POST) |
+| 4 | The calendar's "show all N entries" link was a 19 px target on tablets | **Frontend** | Touch screens get a 44 px target and taller day cells |
+| 5-14 | Wrong expectations in my own audit scripts: label wording ("My leave", "Change role" vs "Save"), the "Reject request" button being intentionally disabled until a reason is typed, options that load asynchronously, an access token that expires during a 40-minute run (the audit client now refreshes like the browser), a password reset that correctly sends the open session to the change-password page, one session's logout not ending another device's session, a deactivated user still appearing in the Owner's list, the audit-trail filter debounce, cross-team project membership | **Test** | Scripts corrected; no product change |
+
+Not weakened anywhere: every backend authorization rule is unchanged; the two backend changes only refuse more.
+
+### Remaining issues (documented, not fixed)
+- **Access tokens are stateless (15 minutes).** After a logout, password change or admin reset, a copied access cookie still *authenticates* until it expires; the refresh token is revoked immediately, an admin reset additionally forces `must_reset` (so that old session can only change the password), and deactivation is checked on every request. Making revocation instant would need a session lookup on every request - a decision for the Owner, not a bug.
+- A Manager can add **any** employee to a project they may modify (projects can span teams; permissions.md ties project membership to assignment, not to the hierarchy). It gives the Manager no access to that employee's own records - verified.
+- A second `approve` on an already decided leave answers `403` (the caller is no longer the current approver), not `409`.
+- Report export, sorting and the notification producer are still absent (unchanged from Prompts 11-12).
+- The remote development database is slow (about 2 s per request), so the full browser audit takes ~40 minutes.
+
+### Build and test results
+`tsc -b` clean, oxlint 0 warnings (including `e2e/`), **364 Vitest tests**, production build OK, **backend suite: 176 tests (174 + 2 new) - 175 passed on the full run and the one failure, a dropped connection to the remote database (`ConnectionResetError`), passed on re-run**.
 
 ## Frontend Phase 8: PWA and cross-platform experience (Prompt 13) - 2026-10-11
 

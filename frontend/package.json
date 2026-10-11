@@ -12,7 +12,9 @@
     "test": "node scripts/run-tests.mjs run",
     "test:watch": "node scripts/run-tests.mjs",
     "gen:api": "./node_modules/.bin/openapi-typescript ../docs/openapi.json -o src/api/schema.d.ts",
-    "check:api": "./node_modules/.bin/openapi-typescript ../docs/openapi.json -o /tmp/hr-schema-check.d.ts && diff -q src/api/schema.d.ts /tmp/hr-schema-check.d.ts"
+    "check:api": "./node_modules/.bin/openapi-typescript ../docs/openapi.json -o /tmp/hr-schema-check.d.ts && diff -q src/api/schema.d.ts /tmp/hr-schema-check.d.ts",
+    "e2e:api": "node e2e/api-audit.mjs",
+    "e2e:ui": "node e2e/ui-audit.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -25,6 +27,7 @@
     "vite-plugin-pwa": "^1.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
@@ -37,6 +40,7 @@
     "msw": "^2.15.0",
     "openapi-typescript": "^7.13.0",
     "oxlint": "^1.81.0",
+    "playwright": "^1.64.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^4.1.11"

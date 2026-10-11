@@ -56,6 +56,7 @@ _MAGIC_SIGNATURES: dict[bytes, tuple[str, ...]] = {
     b"GIF89a": (".gif",),
     b"PK\x03\x04": (".docx", ".xlsx"),  # zip-based Office formats
 }
+_SIGNATURE_REQUIRED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".docx", ".xlsx"}
 
 
 def _validate_upload(filename: str, content: bytes) -> None:
@@ -71,6 +72,7 @@ def _validate_upload(filename: str, content: bytes) -> None:
     if extension not in ALLOWED_EXTENSIONS:
         raise ValidationFailedError(f"File type {extension or '(none)'} is not allowed.")
 
+    is_webp = content.startswith(b"RIFF") and content[8:12] == b"WEBP"
     for signature, extensions in _MAGIC_SIGNATURES.items():
         if content.startswith(signature):
             if extension not in extensions:
@@ -78,8 +80,15 @@ def _validate_upload(filename: str, content: bytes) -> None:
                     "File content does not match its extension."
                 )
             return
-    # No recognized signature (e.g. plain text/csv/legacy .doc/.xls) - the
-    # extension allow-list above is the only check available for those.
+    if is_webp:
+        if extension != ".webp":
+            raise ValidationFailedError("File content does not match its extension.")
+        return
+    # No recognized signature. Plain text/csv and the legacy .doc/.xls formats have no reliable
+    # one, so the extension allow-list is the only check for them. Every other type has a
+    # signature, so content that has none (e.g. an executable renamed to .png) is refused.
+    if extension in _SIGNATURE_REQUIRED_EXTENSIONS:
+        raise ValidationFailedError("File content does not match its extension.")
 
 
 async def _fetch_entity_with_read_check(

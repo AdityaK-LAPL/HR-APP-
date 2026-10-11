@@ -165,6 +165,8 @@ Breakpoints: `<768` mobile (bottom nav, card lists, bottom-sheet dialogs), `768�
 
 Vitest + RTL + MSW handlers generated from the same typed schema. Priorities: (1) API client (refresh single-flight, CSRF, error mapping, offline), (2) auth flows incl. `must_reset`, (3) `PaginatedTable`/`useListQuery`, (4) permission helpers, (5) one happy-path test per feature page. Contract test: the generated `schema.d.ts` equals what `docs/openapi.json` produces (enum equality with the contract is already tested backend-side). `npm run build` stays `tsc -b && vite build`; `npm test` added. Playwright cross-role/cross-device flows are Prompt 14.
 
+**Added in Prompt 14:** `frontend/e2e/` holds the real-stack audits (Playwright + axe-core, no mocks): `api-audit.mjs` (role-separated API + security matrix) and `ui-audit.mjs` (browser workflows per role, hand-typed URLs, back/forward, bad networks, installed app offline, six viewports). They complement - not replace - the Vitest suite; see `development-status.md`, Frontend Phase 9.
+
 ## 13. PWA structure
 
 Keep `vite-plugin-pwa` (`generateSW`). Changes: **`registerType: 'prompt'`** (show "Update available — reload" so a deploy never reloads a half-filled form); precache the app shell only; `navigateFallback: '/index.html'` excluding `/api/`; **`/api/*` is `NetworkOnly`** (never cache authenticated data in the service worker); add 192/512 **PNG** + maskable + Apple touch icons (SVG-only icons fail on iOS/some Android installers); manifest `id`, `lang`, `categories`; the install banner stays. Offline = cached shell + clear offline state + disabled mutations (§6). No claim of offline business functionality.

@@ -3,10 +3,10 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import AuthorizationError, NotFoundError, ValidationFailedError
+from app.core.errors import AuthorizationError, ConflictError, NotFoundError, ValidationFailedError
 from app.models.identity import User
 from app.models.permission import PermissionDefinition, PermissionGrant, RolePermission
 from app.schemas.permission import PermissionGrantCreateRequest
@@ -60,6 +60,31 @@ async def create_grant(
     ).scalar_one_or_none()
     if definition is None:
         raise ValidationFailedError("permission_key does not reference a known permission.")
+
+    # The same grant twice would need two revocations to take effect; refuse it up front.
+    now = datetime.now(UTC)
+    scope_match = (
+        PermissionGrant.scope_id.is_(None)
+        if payload.scope_id is None
+        else PermissionGrant.scope_id == payload.scope_id
+    )
+    duplicate = (
+        await db.execute(
+            select(PermissionGrant.id)
+            .where(
+                PermissionGrant.grantee_user_id == payload.grantee_user_id,
+                PermissionGrant.permission_key == payload.permission_key,
+                PermissionGrant.scope_type == payload.scope_type,
+                scope_match,
+                PermissionGrant.effect == payload.effect,
+                PermissionGrant.revoked_at.is_(None),
+                or_(PermissionGrant.expires_at.is_(None), PermissionGrant.expires_at > now),
+            )
+            .limit(1)
+        )
+    ).first()
+    if duplicate is not None:
+        raise ConflictError("This person already has that exact permission. Revoke it first to change it.")
 
     grant = PermissionGrant(
         grantee_user_id=payload.grantee_user_id,
