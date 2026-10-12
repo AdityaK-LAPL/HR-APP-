@@ -23,6 +23,8 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+import tests._production_guard  # noqa: F401  (must run before ENVIRONMENT is defaulted below)
+
 os.environ.setdefault(
     "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/company_app_test"
 )

@@ -5,8 +5,7 @@ app/services/notification_service.py docstring), so these tests insert
 rows directly via the ORM to exercise list/mark-read/mark-all-read.
 
 Requires a real database with migrations applied - see tests/conftest.py.
-NOT YET EXECUTED in this environment (no reachable Postgres) - see
-docs/development-status.md.
+Runs against the real Supabase database (the whole suite passes - see docs/development-status.md).
 """
 
 import uuid

@@ -7,11 +7,23 @@ secret value - see .env.example for the variables a deployment must supply.
 
 from functools import lru_cache
 from typing import Annotated
+from urllib.parse import parse_qs, urlsplit
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 MIN_JWT_SECRET_LENGTH = 32
+
+
+def _database_is_local(url: str) -> bool:
+    host = urlsplit(url.replace("+asyncpg", "")).hostname or ""
+    return host in {"localhost", "127.0.0.1", "::1"}
+
+
+def _database_requires_tls(url: str) -> bool:
+    query = parse_qs(urlsplit(url.replace("+asyncpg", "")).query)
+    modes = query.get("ssl", []) + query.get("sslmode", [])
+    return any(mode in {"require", "verify-ca", "verify-full", "true"} for mode in modes)
 
 
 class Settings(BaseSettings):
@@ -88,6 +100,13 @@ class Settings(BaseSettings):
     login_rate_limit_max: int = Field(default=10)
     login_rate_limit_window_seconds: float = Field(default=60.0)
 
+    @field_validator("jwt_algorithm")
+    @classmethod
+    def validate_jwt_algorithm(cls, value: str) -> str:
+        if value not in {"HS256", "HS384", "HS512"}:
+            raise ValueError("JWT_ALGORITHM must be HS256, HS384 or HS512 (shared-secret)")
+        return value
+
     @field_validator("company_timezone")
     @classmethod
     def validate_company_timezone(cls, value: str) -> str:
@@ -133,6 +152,20 @@ class Settings(BaseSettings):
                         f"CORS_ALLOWED_ORIGINS entry {origin!r} must be an https:// origin "
                         "(never '*': cookies are sent with credentials)"
                     )
+            if not self.use_supabase_storage:
+                problems.append(
+                    "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set: without them "
+                    "attachments fall back to the server's local disk, which is lost or "
+                    "unshared on most hosts"
+                )
+            if not _database_is_local(self.database_url) and not _database_requires_tls(
+                self.database_url
+            ):
+                problems.append(
+                    "DATABASE_URL must demand TLS (append ?ssl=require, or verify-full with the "
+                    "provider's CA certificate): by default the driver silently falls back to "
+                    "an unencrypted connection if the server refuses TLS"
+                )
         if problems:
             raise ValueError("Unsafe configuration: " + "; ".join(problems))
         return self

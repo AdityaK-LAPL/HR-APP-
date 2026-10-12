@@ -6,8 +6,7 @@ upload/download/delete are exercised for real, not mocked. Still
 `requires_db` since attachment metadata and the entities attachments are
 validated against both live in Postgres.
 
-NOT YET EXECUTED in this environment (no reachable Postgres) - see
-docs/development-status.md.
+Runs against the real Supabase database (the whole suite passes - see docs/development-status.md).
 """
 
 import io

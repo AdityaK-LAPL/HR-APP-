@@ -22,9 +22,30 @@ Last updated: 2026-10-12
 | 14 | Frontend <-> backend integration audit | **Complete** - see "Frontend Phase 9" below (2 backend fixes, 2 frontend fixes, 303-check audit now kept in `frontend/e2e/`) |
 | 15 | UI/UX quality pass | **Complete** - see "Frontend Phase 10" below (no backend change) |
 | 16 | Final security audit | **Complete** - see "Final security audit (Prompt 16)" below: 16 findings fixed, residual risks listed; migration 0019 |
-| 17-18 | Production readiness, UAT | Not started |
+| 17 | Production-readiness review | **Complete** - checklist in `docs/production-readiness.md`, runbook in `docs/deployment.md`; **1 RED** (no backup of attachment files), the rest GREEN or YELLOW decisions |
+| 18 | UAT checklist | Not started |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
+## Production readiness review (Prompt 17) - 2026-10-12
+
+Full checklist (GREEN = ready, YELLOW = decision or configuration needed, RED = blocking; no overall score): **[`docs/production-readiness.md`](production-readiness.md)**. Runbook for whoever deploys (environment, first installation, one-process run, reverse proxy, backups, releases, monitoring, housekeeping): **[`docs/deployment.md`](deployment.md)**. Nothing was deployed or created in any external service.
+
+**Decisions taken for the review (asked of the owner):** one backend process; web app and API on one domain behind one proxy. Consequently the in-memory login rate limiter is **correct as it is** (sessions, refresh tokens, the account lock-out and the audit trail are already in the database; there is no background job); the conditions are exactly one uvicorn process and trusted proxy headers. Redis is only needed if the deployment is ever scaled out.
+
+**Blocking (RED):** the **attachment files have no backup** - Supabase's database backups do not include Storage objects, and nothing copies the bucket.
+
+**Decisions still open (YELLOW), in short:** hosting and domain; Supabase production project, region (next to the backend), plan, backup retention and a restore drill; a monitoring and error-tracking tool and an uptime check; CI; Python 3.14 on the host; the FastAPI/Starlette upgrade; bucket MIME allow-list and malware scanning; retention of personal data (punch locations, attendance, audit); product name; notifications producer and report export (known scope gaps).
+
+**Changes made in this phase (each found by the review):**
+- Start-up now also refuses, in production, a **non-local database URL without `ssl=require`** (the driver silently falls back to plaintext otherwise; the connection was verified to be TLS 1.3 today) and **missing Supabase storage** (files would be written to the server's own disk and lost); only HMAC JWT algorithms are accepted.
+- Database error logs no longer include statement **parameter values**; the three per-request context settings are **one database round trip** instead of three.
+- **Tests cannot be run against a production-configured machine** (`tests/_production_guard.py`): their fixtures `TRUNCATE` the business tables.
+- `backend/requirements.lock` pins the exact tested packages.
+- Stale statements corrected: 13 test files claiming "NOT YET EXECUTED in this environment", and the storage module claiming Supabase storage was unverified.
+- **Verified:** `alembic downgrade base` followed by `alembic upgrade head` on the live Supabase project - all 19 migrations in both directions - and the rebuilt schema has the same security properties; the database runs in UTC with every timestamp `timestamptz`; the connection pool (5 + 2) fits the project's 60 connections.
+
+**Verification:** backend suite **198 tests, all passing** (196 + 2 new; on the full run two tests failed only because this laptop stalled for ~29 minutes - an access cookie expired and a connection was reset - and both pass when re-run); the authorization sweep against the final code **243/243**; the schema rebuild described above; frontend unchanged since the security audit (364 tests, build, `npm audit` 0).
 
 ## Final security audit (Prompt 16) - 2026-10-12
 

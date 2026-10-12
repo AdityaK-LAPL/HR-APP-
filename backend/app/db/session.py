@@ -24,6 +24,9 @@ _settings = get_settings()
 engine: AsyncEngine = create_async_engine(
     _settings.database_url,
     echo=_settings.debug,
+    # Failed statements are logged with their traceback; without this the log would also carry the
+    # statement's parameter values (password hashes, personal data).
+    hide_parameters=True,
     pool_pre_ping=True,
     pool_size=_settings.db_pool_size,
     max_overflow=_settings.db_max_overflow,
@@ -62,18 +65,27 @@ async def set_rls_context(session: AsyncSession, user_id: str | None, role: str 
     third argument.
     """
 
+    # One round trip instead of three: every request pays this, and against a database that is not
+    # on the same machine each round trip is a network hop.
     if _settings.app_db_role:
         # Drop BYPASSRLS for this transaction: the connecting role skips RLS, the
-        # application role does not. Transaction-local, like the GUCs below.
+        # application role does not. Transaction-local, like the GUCs.
         await session.execute(
-            text("SELECT set_config('role', :role, true)"), {"role": _settings.app_db_role}
+            text(
+                "SELECT set_config('role', :db_role, true), "
+                "set_config('app.user_id', :user_id, true), "
+                "set_config('app.user_role', :role, true)"
+            ),
+            {"db_role": _settings.app_db_role, "user_id": user_id or "", "role": role or ""},
         )
-    await session.execute(
-        text("SELECT set_config('app.user_id', :user_id, true)"), {"user_id": user_id or ""}
-    )
-    await session.execute(
-        text("SELECT set_config('app.user_role', :role, true)"), {"role": role or ""}
-    )
+    else:
+        await session.execute(
+            text(
+                "SELECT set_config('app.user_id', :user_id, true), "
+                "set_config('app.user_role', :role, true)"
+            ),
+            {"user_id": user_id or "", "role": role or ""},
+        )
 
 
 async def check_database_connection() -> bool:

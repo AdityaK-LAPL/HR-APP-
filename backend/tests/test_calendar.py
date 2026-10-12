@@ -2,8 +2,7 @@
 context.md section 10.
 
 Requires a real database with migrations applied - see tests/conftest.py.
-NOT YET EXECUTED in this environment (no reachable Postgres) - see
-docs/development-status.md.
+Runs against the real Supabase database (the whole suite passes - see docs/development-status.md).
 """
 
 from tests.conftest import login, make_user, requires_db

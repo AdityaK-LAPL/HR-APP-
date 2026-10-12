@@ -12,11 +12,9 @@ Two backends, selected automatically from configuration:
   REST API directly over HTTP (no Supabase Python SDK dependency, to keep
   the exact request/response shape visible and auditable here). Selected
   automatically once `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are
-  set. **Not exercised in this environment** - no Supabase project is
-  configured - so treat it with the same "written, not yet verified"
-  status as every other piece of this backend that depends on
-  infrastructure this environment doesn't have. See
-  docs/development-status.md.
+  set. Exercised against a real (private) Supabase bucket by the attachment
+  tests and the browser audits. In production it is the only acceptable
+  backend - the application refuses to start without it (see config.py).
 
 Both backends only ever operate on `storage_path` values the application
 itself generated (see app/services/attachment_service.py) - never on a

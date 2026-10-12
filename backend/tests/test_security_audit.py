@@ -32,6 +32,16 @@ def _settings(**overrides) -> Settings:
     return Settings(_env_file=None, **{**base, **overrides})
 
 
+# everything a production deployment must supply, so each test can break exactly one thing
+PRODUCTION = {
+    "environment": "production",
+    "cors_allowed_origins": "https://app.example.com",
+    "database_url": "postgresql+asyncpg://u:p@db.example.com:5432/postgres?ssl=require",
+    "supabase_url": "https://abc.supabase.co",
+    "supabase_service_role_key": "service-key",
+}
+
+
 # ---------------------------------------------------------------- configuration (F-config)
 def test_a_short_or_placeholder_jwt_secret_stops_the_application_starting():
     for weak in (
@@ -45,15 +55,40 @@ def test_a_short_or_placeholder_jwt_secret_stops_the_application_starting():
 
 
 def test_production_refuses_debug_wildcard_and_plain_http_origins():
-    prod = {"environment": "production", "cors_allowed_origins": "https://app.example.com"}
-    _settings(**prod)  # the safe combination starts
+    _settings(**PRODUCTION)  # the safe combination starts
     with pytest.raises(ValueError, match="DEBUG"):
-        _settings(**prod, debug=True)
+        _settings(**PRODUCTION, debug=True)
     with pytest.raises(ValueError, match="CORS_ALLOWED_ORIGINS"):
-        _settings(environment="production", cors_allowed_origins="")
+        _settings(**{**PRODUCTION, "cors_allowed_origins": ""})
     for origin in ("*", "http://app.example.com"):
         with pytest.raises(ValueError, match="https://"):
-            _settings(environment="production", cors_allowed_origins=origin)
+            _settings(**{**PRODUCTION, "cors_allowed_origins": origin})
+
+
+def test_production_needs_real_file_storage_and_an_encrypted_database_connection():
+    no_storage = {k: v for k, v in PRODUCTION.items() if not k.startswith("supabase")}
+    with pytest.raises(ValueError, match="SUPABASE_URL"):
+        _settings(**no_storage)
+    for unencrypted in (
+        "postgresql+asyncpg://u:p@db.example.com:5432/postgres",
+        "postgresql+asyncpg://u:p@db.example.com:5432/postgres?ssl=prefer",
+        "postgresql+asyncpg://u:p@db.example.com:5432/postgres?ssl=disable",
+    ):
+        with pytest.raises(ValueError, match="TLS"):
+            _settings(**{**PRODUCTION, "database_url": unencrypted})
+    for encrypted in ("?ssl=require", "?ssl=verify-full", "?sslmode=require"):
+        _settings(**{**PRODUCTION, "database_url": f"postgresql+asyncpg://u:p@h.example.com/db{encrypted}"})
+    # a database on the same machine needs no TLS, and development is never held to production rules
+    _settings(**{**PRODUCTION, "database_url": "postgresql+asyncpg://u:p@localhost/db"})
+    _settings(database_url="postgresql+asyncpg://u:p@db.example.com/db")
+
+
+def test_only_shared_secret_jwt_algorithms_are_accepted():
+    for ok in ("HS256", "HS384", "HS512"):
+        _settings(jwt_algorithm=ok)
+    for bad in ("none", "RS256", "hs256"):
+        with pytest.raises(ValueError, match="JWT_ALGORITHM"):
+            _settings(jwt_algorithm=bad)
 
 
 def test_production_cookies_are_secure_httponly_and_lax(monkeypatch):
@@ -61,7 +96,7 @@ def test_production_cookies_are_secure_httponly_and_lax(monkeypatch):
 
     monkeypatch.setattr(
         "app.core.cookies.get_settings",
-        lambda: _settings(environment="production", cors_allowed_origins="https://a.example"),
+        lambda: _settings(**PRODUCTION),
     )
     response = Response()
     set_auth_cookies(response, access_token="a", refresh_token="r", csrf_token="c")

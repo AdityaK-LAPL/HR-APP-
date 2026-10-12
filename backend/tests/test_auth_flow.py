@@ -2,8 +2,7 @@
 client. See docs/api-contract.md section 1.
 
 Requires a real database with migrations applied - see tests/conftest.py.
-NOT YET EXECUTED in this environment (no reachable Postgres) - see
-docs/development-status.md. Written to skip cleanly rather than fail
+Runs against the real Supabase database (the whole suite passes - see docs/development-status.md). Written to skip cleanly rather than fail
 obscurely when DATABASE_URL is unreachable.
 """
 
