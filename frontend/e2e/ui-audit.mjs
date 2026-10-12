@@ -2,7 +2,7 @@
 // each role has, the security matrix as a person would hit it (typing URLs), browser history,
 // and unreliable networks. Data comes from the real API (lib.mjs seedCompany).
 import AxeBuilder from '@axe-core/playwright'
-import { Api, BASE, Matrix, PW, eventually, launch, seedCompany } from './lib.mjs'
+import { Api, BASE, Matrix, PW, eventually, launch, seedCompany, TEMP } from './lib.mjs'
 
 const ONLY = (process.env.E2E_ONLY ?? '').split(',').filter(Boolean)
 const want = (name) => ONLY.length === 0 || ONLY.includes(name)
@@ -50,8 +50,8 @@ async function signedIn(role, code) {
 
 // ======================================================= 1. Authentication (UI)
 if (want('auth')) {
-users.REV1 = await apis.OWN001.must('POST', '/users', { employee_code: 'REV1', name: 'Rae Revoked', designation: 'Trainee', role: 'employee', manager_id: users.MGRA.id, initial_password: 'Temp#REV1#2026' })
-{ const r = await Api.anonymous(); await r.login('REV1', 'Temp#REV1#2026'); await r.post('/auth/change-password', { current_password: 'Temp#REV1#2026', new_password: PW('REV1') }); await r.dispose() }
+users.REV1 = await apis.OWN001.must('POST', '/users', { employee_code: 'REV1', name: 'Rae Revoked', designation: 'Trainee', role: 'employee', manager_id: users.MGRA.id, initial_password: TEMP('REV1') })
+{ const r = await Api.anonymous(); await r.login('REV1', TEMP('REV1')); await r.post('/auth/change-password', { current_password: TEMP('REV1'), new_password: PW('REV1') }); await r.dispose() }
 {
   const area = 'Authentication (UI)'
   const ctx = await newCtx(); const p = await ctx.newPage(); watch(p, 'auth')
@@ -178,7 +178,7 @@ if (want('employee')) {
 
 // ======================================================= 3. Manager
 let M = want('manager') || want('owner') ? await signedIn('manager', 'MGRA') : null
-if (want('manager')) await apis.OWN001.must('POST', '/users', { employee_code: 'TIA1', name: 'Tia Temporary', designation: 'Trainee', role: 'employee', manager_id: users.MGRA.id, initial_password: 'Temp#TIA1#2026' })
+if (want('manager')) await apis.OWN001.must('POST', '/users', { employee_code: 'TIA1', name: 'Tia Temporary', designation: 'Trainee', role: 'employee', manager_id: users.MGRA.id, initial_password: TEMP('TIA1') })
 if (want('manager')) {
   const area = 'Manager workflows (UI)'
   const p = M.page
@@ -256,7 +256,7 @@ if (want('owner')) {
   await m.check(area, 'owner', 'company overview', async () => { await h1(p, /Hello|Company overview/).waitFor(); return true })
   await m.check(area, 'owner', 'users: everyone, both branches', async () => { await go(p, '/users'); await h1(p, 'Users & hierarchy').waitFor(); const t = await p.locator('main').innerText(); return /Ben Engineer/.test(t) && /Ann Engineer/.test(t) && /Bob Manager/.test(t) ? true : `FAIL ${t.slice(0, 200)}` })
   await m.check(area, 'owner', 'users: add a person (and a duplicate ID is refused)', async () => {
-    const add = async (code) => { await p.getByRole('button', { name: 'Add a person' }).click(); const d = dialog(p, 'Add a person'); await d.getByLabel(/employee id/i).fill(code); await d.getByLabel(/^name/i).fill('Nia Newhire'); await d.getByLabel('Designation').fill('Trainee'); await pick(d.getByLabel('Reports to'), /Alice/); await d.getByLabel(/temporary password/i).fill('Temp#NEW1#2026'); await d.getByRole('button', { name: 'Add person' }).click() }
+    const add = async (code) => { await p.getByRole('button', { name: 'Add a person' }).click(); const d = dialog(p, 'Add a person'); await d.getByLabel(/employee id/i).fill(code); await d.getByLabel(/^name/i).fill('Nia Newhire'); await d.getByLabel('Designation').fill('Trainee'); await pick(d.getByLabel('Reports to'), /Alice/); await d.getByLabel(/temporary password/i).fill(TEMP('NEW1')); await d.getByRole('button', { name: 'Add person' }).click() }
     await add('NEW1'); await h1(p, 'Nia Newhire').waitFor()
     await go(p, '/users'); await add('NEW1'); await dialog(p).getByText(/already in use/i).waitFor(); await dialog(p).getByRole('button', { name: 'Cancel' }).click(); return true })
   await m.check(area, 'owner', 'person: change role, change manager, deactivate, reactivate', async () => {
@@ -267,7 +267,7 @@ if (want('owner')) {
     await p.getByRole('button', { name: 'Reactivate' }).click(); await dialog(p, 'Reactivate Nia Newhire?').getByRole('button', { name: 'Reactivate' }).click(); await p.getByText('Inactive').first().waitFor({ state: 'detached' }); return true })
   await m.check(area, 'owner', 'a deactivated person really cannot sign in (checked in a fresh browser)', async () => {
     await p.getByRole('button', { name: 'Deactivate' }).click(); await dialog(p).getByRole('button', { name: 'Deactivate' }).click(); await p.getByText('Inactive').first().waitFor()
-    const c = await newCtx(); const q = await c.newPage(); await q.goto(BASE + '/login'); await q.locator('input[name="employee_code"]').fill('NEW1'); await q.locator('input[name="password"]').fill('Temp#NEW1#2026'); await q.getByRole('button', { name: 'Sign in' }).click(); await q.getByRole('alert').first().waitFor(); const ok = q.url().includes('/login'); await c.close(); return ok })
+    const c = await newCtx(); const q = await c.newPage(); await q.goto(BASE + '/login'); await q.locator('input[name="employee_code"]').fill('NEW1'); await q.locator('input[name="password"]').fill(TEMP('NEW1')); await q.getByRole('button', { name: 'Sign in' }).click(); await q.getByRole('alert').first().waitFor(); const ok = q.url().includes('/login'); await c.close(); return ok })
   // grant visibility - verified from the manager's own browser
   await m.check(area, 'owner', 'permissions: grant Alice sight of Bob\'s branch -> Alice\'s own browser then shows Bob\'s tasks (read-only)', async () => {
     await go(p, '/permissions'); await h1(p, 'Permissions').waitFor(); await p.getByRole('button', { name: 'Add a permission' }).click(); const d = dialog(p, 'Add a permission')

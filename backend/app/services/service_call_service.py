@@ -382,4 +382,12 @@ async def unassign_employee(
 
     assignment.is_active = False
     assignment.unassigned_at = datetime.now(UTC)
+    await record_audit_log(
+        db,
+        actor_user_id=actor.id,
+        action="service_call.employee_unassigned",
+        entity_type="service_call",
+        entity_id=call.id,
+        old_value={"employee_id": str(assignment.employee_id)},
+    )
     await db.flush()

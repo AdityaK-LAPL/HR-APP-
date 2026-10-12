@@ -35,6 +35,11 @@ from app.services.permission_service import in_scope
 LOCKOUT_THRESHOLD = 5
 LOCKOUT_DURATION_MINUTES = 15
 
+# A refresh token that was already swapped for a new one is normally just a stale or racing
+# request (two tabs, a response lost on a bad network). Presenting it again *after* this long
+# means someone else is holding a copy: every session of that person is then ended.
+REFRESH_REUSE_GRACE_SECONDS = 60
+
 # Computed once so a "no such employee_code" login still pays the same
 # Argon2 cost as a real failed-password attempt, narrowing (not
 # eliminating) the ability to enumerate valid employee codes by timing.
@@ -147,6 +152,13 @@ async def refresh_session(
     ).scalar_one_or_none()
 
     now = datetime.now(UTC)
+    if (
+        session is not None
+        and session.rotated_at is not None
+        and now - session.rotated_at > timedelta(seconds=REFRESH_REUSE_GRACE_SECONDS)
+    ):
+        await _end_all_sessions_after_token_reuse(db, session, ip_address=ip_address, now=now)
+        raise generic_error
     if session is None or session.revoked_at is not None or session.expires_at <= now:
         raise generic_error
 
@@ -155,10 +167,35 @@ async def refresh_session(
         raise generic_error
 
     session.revoked_at = now
+    session.rotated_at = now
     await set_rls_context(db, user_id=str(user.id), role=user.role)
     result = _issue_session(db, user=user, user_agent=user_agent, ip_address=ip_address)
     await db.flush()
     return result
+
+
+async def _end_all_sessions_after_token_reuse(
+    db: AsyncSession, session: SessionModel, *, ip_address: str | None, now: datetime
+) -> None:
+    live = (
+        await db.execute(
+            select(SessionModel).where(
+                SessionModel.user_id == session.user_id, SessionModel.revoked_at.is_(None)
+            )
+        )
+    ).scalars()
+    for other in live:
+        other.revoked_at = now
+    await record_audit_log(
+        db,
+        actor_user_id=None,
+        action="user.refresh_token_reuse",
+        entity_type="user",
+        entity_id=session.user_id,
+        ip_address=ip_address,
+    )
+    # Commit before the caller raises: get_db rolls back on any exception, which would undo this.
+    await db.commit()
 
 
 async def logout(
@@ -183,7 +220,7 @@ async def logout(
 async def change_password(
     db: AsyncSession, *, current_user: CurrentUser, current_password: str, new_password: str
 ) -> None:
-    validate_password_strength(new_password)
+    validate_password_strength(new_password, employee_code=current_user.employee_code)
 
     credentials = (
         await db.execute(select(UserCredentials).where(UserCredentials.user_id == current_user.id))
@@ -225,11 +262,10 @@ async def admin_reset_password(
     target_user_id: uuid.UUID,
     temporary_password: str,
 ) -> None:
-    validate_password_strength(temporary_password)
-
     target = (await db.execute(select(User).where(User.id == target_user_id))).scalar_one_or_none()
     if target is None:
         raise NotFoundError("User not found.")
+    validate_password_strength(temporary_password, employee_code=target.employee_code)
 
     if actor.role != "owner":
         if actor.role != "manager" or not await in_scope(db, actor, target_user_id):
@@ -237,7 +273,9 @@ async def admin_reset_password(
 
     if actor.role == "owner" or actor.id == target_user_id:
         credentials = (
-            await db.execute(select(UserCredentials).where(UserCredentials.user_id == target_user_id))
+            await db.execute(
+                select(UserCredentials).where(UserCredentials.user_id == target_user_id)
+            )
         ).scalar_one_or_none()
         if credentials is None:
             raise NotFoundError("User has no credentials on record.")

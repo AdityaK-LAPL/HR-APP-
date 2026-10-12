@@ -84,7 +84,9 @@ async def create_grant(
         )
     ).first()
     if duplicate is not None:
-        raise ConflictError("This person already has that exact permission. Revoke it first to change it.")
+        raise ConflictError(
+            "This person already has that exact permission. Revoke it first to change it."
+        )
 
     grant = PermissionGrant(
         grantee_user_id=payload.grantee_user_id,

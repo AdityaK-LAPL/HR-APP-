@@ -15,6 +15,7 @@ from app.models.machine import Machine
 from app.models.service import ServiceAssignment, ServiceCall
 from app.schemas.machine import MachineCreateRequest, MachineUpdateRequest
 from app.schemas.principal import CurrentUser
+from app.services.audit_service import record_audit_log
 from app.services.permission_service import in_scope
 from app.services.search import ESCAPE, like_pattern
 
@@ -161,6 +162,16 @@ async def update_machine(
         machine.location = payload.location
     if payload.status is not None:
         machine.status = payload.status
+    if payload.is_active is not None and payload.is_active != machine.is_active:
+        await record_audit_log(
+            db,
+            actor_user_id=actor.id,
+            action="machine.reactivated" if payload.is_active else "machine.deactivated",
+            entity_type="machine",
+            entity_id=machine.id,
+            old_value={"is_active": machine.is_active},
+            new_value={"is_active": payload.is_active},
+        )
     if payload.is_active is not None:
         machine.is_active = payload.is_active
 

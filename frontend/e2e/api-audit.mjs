@@ -1,7 +1,7 @@
 // Role-separated API audit through the same origin the browser uses (vite preview proxy -> FastAPI).
 // Covers authentication, each role's workflows, and the security matrix (who may NOT do what).
 //   Fresh database:  python -m scripts.seed_owner   (with OWNER_PASSWORD set to the value passed here)
-import { Api, BASE, Matrix, PW, idsOf, itemsOf, seedCompany } from './lib.mjs'
+import { Api, BASE, Matrix, PW, idsOf, itemsOf, seedCompany, TEMP } from './lib.mjs'
 
 const m = new Matrix()
 const { apis, data } = await seedCompany()
@@ -72,12 +72,16 @@ const hidden = [403, 404]
   const p = await Api.anonymous(); await p.login('EMPA2', PW('EMPA2'))
   status(area, 'employee', 'change-password with a wrong current password is refused', await p.post('/auth/change-password', { current_password: 'nope', new_password: 'Another#Pass2026' }), 400, 401, 403, 422)
   status(area, 'employee', 'change-password with a weak new password -> 422', await p.post('/auth/change-password', { current_password: PW('EMPA2'), new_password: 'short' }), 422, 400)
+  status(area, 'employee', 'a common password ("password123") is refused', await p.post('/auth/change-password', { current_password: PW('EMPA2'), new_password: 'password123' }), 422)
+  status(area, 'employee', 'a password containing the employee ID is refused', await p.post('/auth/change-password', { current_password: PW('EMPA2'), new_password: 'xEMPA2-2026-xyz' }), 422)
+  const hdr = await p.get('/auth/me')
+  m.add(area, 'employee', 'API responses are not cacheable and not sniffable', 'no-store + nosniff', `${hdr.headers['cache-control']} / ${hdr.headers['x-content-type-options']}`, hdr.headers['cache-control'] === 'no-store' && hdr.headers['x-content-type-options'] === 'nosniff')
   await p.dispose()
 
   // a brand-new account must change its password before doing anything else
-  const nu = await O.must('POST', '/users', { employee_code: 'NEWBIE', name: 'Nina Newbie', designation: 'Trainee', role: 'employee', manager_id: users.MGRA.id, initial_password: 'Temp#NEWBIE#2026' })
+  const nu = await O.must('POST', '/users', { employee_code: 'NEWBIE', name: 'Nina Newbie', designation: 'Trainee', role: 'employee', manager_id: users.MGRA.id, initial_password: TEMP('NEWBIE') })
   const n = await Api.anonymous()
-  const nl = await n.login('NEWBIE', 'Temp#NEWBIE#2026')
+  const nl = await n.login('NEWBIE', TEMP('NEWBIE'))
   m.add(area, 'employee', 'a new account signs in and is flagged must_reset', 'true', String(nl.body?.must_reset ?? nl.body?.user?.must_reset), (nl.body?.must_reset ?? nl.body?.user?.must_reset) === true)
   status(area, 'employee', 'until the password is changed, business endpoints are refused (403)', await n.get('/tasks'), 403)
   status(area, 'employee', '... but /auth/me still answers (the app needs it)', await n.get('/auth/me'), 200)
@@ -85,7 +89,7 @@ const hidden = [403, 404]
   // deactivated user
   await O.must('PATCH', `/users/${nu.id}`, { is_active: false })
   const d = await Api.anonymous()
-  status(area, 'employee', 'a deactivated account cannot sign in', await d.login('NEWBIE', 'Temp#NEWBIE#2026'), 401, 403)
+  status(area, 'employee', 'a deactivated account cannot sign in', await d.login('NEWBIE', TEMP('NEWBIE')), 401, 403)
   await d.dispose()
 }
 
@@ -137,6 +141,10 @@ const hidden = [403, 404]
   status(area, 'employee', 'download it back', dl, 200)
   status(area, 'employee', 'a file whose content does not match its extension is refused (422)', await A1.req('POST', '/attachments', { multipart: { entity_type: 'task', entity_id: data.taskA1.id, file: { name: 'evil.png', mimeType: 'image/png', buffer: Buffer.from('MZ\x90\x00 this is an exe') } } }), 422, 400)
   status(area, 'employee', 'a disallowed extension is refused', await A1.req('POST', '/attachments', { multipart: { entity_type: 'task', entity_id: data.taskA1.id, file: { name: 'run.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('MZ') } } }), 422, 400, 415)
+  const evil = await A1.req('POST', '/attachments', { multipart: { entity_type: 'task', entity_id: data.taskA1.id, file: { name: '../../evil.png', mimeType: 'image/png', buffer: png } } })
+  m.add(area, 'employee', 'a path in an uploaded filename is cleaned (../../evil.png -> evil.png)', 'evil.png', evil.body?.original_filename, evil.status === 201 && evil.body.original_filename === 'evil.png')
+  const long = await A1.req('POST', '/attachments', { multipart: { entity_type: 'task', entity_id: data.taskA1.id, file: { name: `${'a'.repeat(300)}.png`, mimeType: 'image/png', buffer: png } } })
+  status(area, 'employee', 'a 300-character filename is shortened, not a server error', long, 201)
   status(area, 'employee', 'notifications list', await A1.get('/notifications'), 200)
   status(area, 'employee', 'permissions/me', await A1.get('/permissions/me'), 200)
   status(area, 'employee', 'user directory (names for display)', await A1.get(`/users/directory?ids=${users.MGRA.id}`), 200)
@@ -181,9 +189,9 @@ const hidden = [403, 404]
   const area = 'Owner workflows'
   m.add(area, 'owner', 'user list = everyone', '>=6', String(itemsOf((await O.get('/users')).body).length), itemsOf((await O.get('/users')).body).length >= 6)
   status(area, 'owner', 'hierarchy', await O.get('/hierarchy'), 200)
-  const nm = await O.post('/users', { employee_code: 'MGRC', name: 'Cara Manager', designation: 'Quality Manager', role: 'manager', manager_id: users.OWN001.id, initial_password: 'Temp#MGRC#2026' })
+  const nm = await O.post('/users', { employee_code: 'MGRC', name: 'Cara Manager', designation: 'Quality Manager', role: 'manager', manager_id: users.OWN001.id, initial_password: TEMP('MGRC') })
   status(area, 'owner', 'create a manager', nm, 201, 200)
-  status(area, 'owner', 'duplicate employee ID refused', await O.post('/users', { employee_code: 'MGRC', name: 'Dup', designation: 'x', role: 'employee', manager_id: users.OWN001.id, initial_password: 'Temp#MGRC#2026' }), 409, 422)
+  status(area, 'owner', 'duplicate employee ID refused', await O.post('/users', { employee_code: 'MGRC', name: 'Dup', designation: 'x', role: 'employee', manager_id: users.OWN001.id, initial_password: TEMP('MGRC') }), 409, 422)
   status(area, 'owner', 'move a manager under another (hierarchy)', await O.patch(`/hierarchy/${nm.body?.id}/manager`, { manager_id: users.MGRB.id }), 200)
   status(area, 'owner', 'a reporting-line loop is refused', await O.patch(`/hierarchy/${users.MGRB.id}/manager`, { manager_id: nm.body?.id }), 409, 422, 400)
   status(area, 'owner', 'permission definitions', await O.get('/permissions/definitions'), 200)
@@ -220,7 +228,7 @@ const hidden = [403, 404]
   // employee vs manager / owner surfaces
   const eu = await A1.get('/users')
   m.add(area, 'employee', 'GET /users shows nobody but themselves', 'only EMPA1', JSON.stringify(itemsOf(eu.body).map((u) => u.employee_code)), eu.status === 403 || JSON.stringify(itemsOf(eu.body).map((u) => u.employee_code)) === '["EMPA1"]')
-  status(area, 'employee', 'POST /users refused', await A1.post('/users', { employee_code: 'X1', name: 'x', designation: 'x', role: 'employee', manager_id: users.MGRA.id, initial_password: 'Temp#X1#2026' }), 403)
+  status(area, 'employee', 'POST /users refused', await A1.post('/users', { employee_code: 'X1', name: 'x', designation: 'x', role: 'employee', manager_id: users.MGRA.id, initial_password: TEMP('X1') }), 403)
   status(area, 'employee', 'GET /users/{peer}', await A1.get(`/users/${users.EMPA2.id}`), ...hidden)
   status(area, 'employee', 'GET /users/{other branch}', await A1.get(`/users/${users.EMPB1.id}`), ...hidden)
   status(area, 'employee', 'PATCH /users/{self} role escalation to owner', await A1.patch(`/users/${users.EMPA1.id}`, { role: 'owner' }), 403)
@@ -292,7 +300,7 @@ const hidden = [403, 404]
   status(area, 'manager A', 'reset the Owner\'s password', await A.post(`/users/${users.OWN001.id}/reset-password`, { temporary_password: 'Hack#Temp#2026' }), ...hidden)
   status(area, 'manager A', 'edit B\'s employee', await A.patch(`/users/${users.EMPB1.id}`, { name: 'Hijacked' }), ...hidden)
   // manager vs owner pages
-  status(area, 'manager A', 'create a user', await A.post('/users', { employee_code: 'X2', name: 'x', designation: 'x', role: 'employee', manager_id: users.MGRA.id, initial_password: 'Temp#X2#2026' }), 403)
+  status(area, 'manager A', 'create a user', await A.post('/users', { employee_code: 'X2', name: 'x', designation: 'x', role: 'employee', manager_id: users.MGRA.id, initial_password: TEMP('X2') }), 403)
   status(area, 'manager A', 'promote my employee to manager', await A.patch(`/users/${users.EMPA2.id}`, { role: 'manager' }), 403)
   status(area, 'manager A', 'deactivate my employee', await A.patch(`/users/${users.EMPA2.id}`, { is_active: false }), 403)
   status(area, 'manager A', 'move someone in the hierarchy', await A.patch(`/hierarchy/${users.EMPA2.id}/manager`, { manager_id: users.MGRB.id }), 403)
@@ -314,8 +322,8 @@ const hidden = [403, 404]
   await O.del(`/permissions/grants/${deny.body?.id}`)
   status(area, 'manager A', 'after revocation the edit is refused again', await A.patch(`/projects/${data.projectB.id}`, { description: 'Again' }), ...hidden)
   // a deactivated user's live session stops working
-  const v = await O.post('/users', { employee_code: 'TEMP9', name: 'Temp Nine', designation: 'x', role: 'employee', manager_id: users.MGRA.id, initial_password: 'Temp#TEMP9#2026' })
-  const t9 = await Api.anonymous(); await t9.login('TEMP9', 'Temp#TEMP9#2026'); await t9.post('/auth/change-password', { current_password: 'Temp#TEMP9#2026', new_password: 'Audit#TEMP9#2026' }); await t9.login('TEMP9', 'Audit#TEMP9#2026')
+  const v = await O.post('/users', { employee_code: 'TEMP9', name: 'Temp Nine', designation: 'x', role: 'employee', manager_id: users.MGRA.id, initial_password: TEMP('TEMP9') })
+  const t9 = await Api.anonymous(); await t9.login('TEMP9', TEMP('TEMP9')); await t9.post('/auth/change-password', { current_password: TEMP('TEMP9'), new_password: PW('TEMP9') }); await t9.login('TEMP9', PW('TEMP9'))
   status(area, 'employee', 'session works before deactivation', await t9.get('/tasks'), 200)
   await O.patch(`/users/${v.body?.id}`, { is_active: false })
   const after = await t9.get('/tasks')

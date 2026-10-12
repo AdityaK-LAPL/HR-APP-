@@ -26,11 +26,28 @@ _password_hasher = PasswordHasher()
 MIN_PASSWORD_LENGTH = 8
 
 
-def validate_password_strength(password: str) -> None:
+# The passwords people reach for first. Not a substitute for a breach list - just the cheap
+# check that stops "password" and "12345678" being accepted as a new password.
+_COMMON_PASSWORDS = frozenset(
+    {
+        "password", "password1", "password12", "password123", "passw0rd", "p@ssw0rd", "12345678",
+        "123456789", "1234567890", "qwerty123", "qwertyuiop", "iloveyou", "welcome1", "welcome123",
+        "admin123", "administrator", "letmein123", "abc12345", "changeme", "changeme123",
+        "company123", "11111111", "00000000", "88888888", "987654321",
+    }
+)  # fmt: skip
+
+
+def validate_password_strength(password: str, *, employee_code: str | None = None) -> None:
     if len(password) < MIN_PASSWORD_LENGTH:
         raise ValidationFailedError(
             f"Password must be at least {MIN_PASSWORD_LENGTH} characters long."
         )
+    folded = password.strip().lower()
+    if folded in _COMMON_PASSWORDS or len(set(folded)) == 1:
+        raise ValidationFailedError("That password is too easy to guess. Choose another one.")
+    if employee_code and employee_code.strip().lower() in folded:
+        raise ValidationFailedError("The password must not contain your employee ID.")
 
 
 def hash_password(password: str) -> str:

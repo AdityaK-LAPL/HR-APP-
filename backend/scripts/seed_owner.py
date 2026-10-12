@@ -72,7 +72,7 @@ async def main() -> int:
 
     generated = args.password is None
     password = args.password or secrets.token_urlsafe(18)
-    validate_password_strength(password)
+    validate_password_strength(password, employee_code=args.employee_code)
 
     try:
         created = await seed(args.employee_code, args.name, password)

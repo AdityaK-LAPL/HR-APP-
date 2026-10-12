@@ -207,3 +207,10 @@ The contract has always said a Manager may edit `name`/`designation` of anyone i
 - `app_admin_reset_password(target, hash)` (SECURITY DEFINER) lets a Manager reset a *descendant's* password (depth > 0; never their own, never a peer's): it sets the hash, forces `must_reset`, clears the lockout and revokes the target's sessions. `user_credentials` and `sessions` policies are unchanged (Owner-or-self), so a Manager can still never read a password hash.
 - Tests: `tests/test_manager_user_admin.py` (11): edit, out-of-subtree 404, role/status refused (API 403 and database trigger), employee cannot promote themself, reset ends sessions and clears lockout, peer's report refused, the function refuses employees/peers/self/system, hashes stay unreadable.
 
+
+## 13. Final security audit hardening (migration 0019, 2026-10-12)
+
+- **Database privileges.** The application role (`hr_app_rls`) can no longer `DELETE` from any table except `manager_hierarchy_closure`, which the reporting-line trigger rewrites when someone changes manager. The application never deleted anything - records are deactivated, archived or soft-removed - so this turns "history is preserved" from a coding habit into a database rule (a future bug or an injected statement cannot erase it). New tables inherit the same default.
+- **`SECURITY DEFINER` functions** (`app_visible_user_ids`, `app_user_directory`, `app_admin_reset_password` and the `current_app_*` helpers) all pin `search_path = public, pg_temp`, so no object a caller can create in a temporary schema can stand in for a table or function they use.
+- **Sessions** gained `rotated_at` (when a refresh token was swapped for a new one) so the reuse of an already-rotated token can be told apart from one revoked by a sign-out.
+- Tests: `backend/tests/test_security_audit.py`; the live checks are `frontend/e2e/authz-sweep.mjs` (every operation, branch A against branch B) and `api-audit.mjs`.

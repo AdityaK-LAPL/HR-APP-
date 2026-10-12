@@ -8,6 +8,8 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   'user.password_reset': 'Password reset by an administrator',
   'user.password_changed': 'Password changed',
   'user.account_locked': 'Account locked after failed sign-ins',
+  'user.account_unlocked': 'Account unlocked by an administrator',
+  'user.refresh_token_reuse': 'Sign-in token used twice - all sessions ended',
   'task.created': 'Task created',
   'task.reassigned': 'Task reassigned',
   'task.status_changed': 'Task status changed',
@@ -21,7 +23,15 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   'service_call.created': 'Service call created',
   'service_call.employee_assigned': 'Employee assigned to a service call',
   'service_call.status_changed': 'Service call status changed',
+  'service_call.employee_unassigned': 'Employee removed from a service call',
   'service_report.submitted': 'Service report submitted',
+  'service_report.reviewed': 'Service report reviewed',
+  'attachment.uploaded': 'File attached',
+  'attachment.removed': 'File removed',
+  'customer.deactivated': 'Customer deactivated',
+  'customer.reactivated': 'Customer reactivated',
+  'machine.deactivated': 'Machine deactivated',
+  'machine.reactivated': 'Machine reactivated',
   'leave.approved': 'Leave approved',
   'leave.rejected': 'Leave rejected',
 }
@@ -34,6 +44,9 @@ export const AUDIT_ENTITY_TYPES: Record<string, string> = {
   service_call: 'Service call',
   service_report: 'Service report',
   permission_grant: 'Permission',
+  customer: 'Customer',
+  machine: 'Machine',
+  eod_report: 'EOD report',
 }
 
 export function actionLabel(action: string): string {

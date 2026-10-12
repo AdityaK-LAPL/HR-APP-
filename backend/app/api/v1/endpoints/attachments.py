@@ -1,12 +1,15 @@
 """Attachment endpoints - see docs/api-contract.md section 15."""
 
+import re
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.schemas.attachment import (
     AttachmentListResponse,
@@ -19,11 +22,16 @@ from app.services import attachment_service
 router = APIRouter(prefix="/attachments", tags=["attachments"])
 
 
-def _safe_content_disposition_filename(filename: str) -> str:
-    # original_filename is user-supplied at upload time - strip characters
-    # that could break the quoted-string header syntax rather than trust it
-    # verbatim in a response header.
-    return filename.replace('"', "'").replace("\r", "").replace("\n", "")
+def _content_disposition(filename: str) -> str:
+    """`attachment` with an ASCII fallback plus the real name in RFC 5987 form.
+
+    original_filename is client-supplied text (older rows may even hold paths or non-Latin
+    letters); a header value must be Latin-1 and free of quotes and control characters, so the
+    fallback is ASCII-only and the exact name travels percent-encoded in `filename*`.
+    """
+    last_segment = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    fallback = re.sub(r"[^A-Za-z0-9._ -]", "_", last_segment)[:100] or "download"
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 @router.get("", response_model=AttachmentListResponse)
@@ -49,7 +57,8 @@ async def upload_attachment(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> AttachmentWithUrlResponse:
-    content = await file.read()
+    # Read one byte past the limit: an oversized upload is refused without holding all of it.
+    content = await file.read(get_settings().attachment_max_size_bytes + 1)
     attachment = await attachment_service.upload_attachment(
         db,
         actor=current_user,
@@ -89,11 +98,10 @@ async def download_attachment(
     content, attachment = await attachment_service.download_attachment_bytes(
         db, actor=current_user, attachment_id=attachment_id
     )
-    safe_name = _safe_content_disposition_filename(attachment.original_filename)
     return StreamingResponse(
         iter([content]),
         media_type=attachment.mime_type or "application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}"'},
+        headers={"Content-Disposition": _content_disposition(attachment.original_filename)},
     )
 
 

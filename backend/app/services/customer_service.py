@@ -24,6 +24,7 @@ from app.schemas.customer import (
     CustomerUpdateRequest,
 )
 from app.schemas.principal import CurrentUser
+from app.services.audit_service import record_audit_log
 from app.services.permission_service import in_scope
 from app.services.search import ESCAPE, like_pattern
 
@@ -180,6 +181,16 @@ async def update_customer(
         customer.address = payload.address
     if payload.notes is not None:
         customer.notes = payload.notes
+    if payload.is_active is not None and payload.is_active != customer.is_active:
+        await record_audit_log(
+            db,
+            actor_user_id=actor.id,
+            action="customer.reactivated" if payload.is_active else "customer.deactivated",
+            entity_type="customer",
+            entity_id=customer.id,
+            old_value={"is_active": customer.is_active},
+            new_value={"is_active": payload.is_active},
+        )
     if payload.is_active is not None:
         customer.is_active = payload.is_active
 

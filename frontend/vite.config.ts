@@ -17,9 +17,50 @@ const apiProxy = {
   },
 }
 
+// The app's content-security policy. Everything is served from its own origin - the font is bundled,
+// there are no third-party scripts, no inline scripts, no eval - so the policy can be strict: scripts
+// only from this origin, nothing embeddable, no plugins, forms and links back to this origin only.
+// If the API lives on another origin (VITE_API_BASE is absolute) that origin is allowed to connect.
+const apiOrigin = (() => {
+  try {
+    return new URL(process.env.VITE_API_BASE ?? '').origin
+  } catch {
+    return ''
+  }
+})()
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  `connect-src 'self' ${apiOrigin}`.trim(),
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ')
+// Headers the production host must send (a <meta> tag cannot carry frame-ancestors or the rest);
+// `vite preview` sends them too, so the production build is tested under the real policy.
+const securityHeaders = {
+  'Content-Security-Policy': `${contentSecurityPolicy}; frame-ancestors 'none'`,
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'no-referrer',
+  'Permissions-Policy': 'geolocation=(self), camera=(), microphone=(), payment=()',
+}
+
 export default defineConfig({
   plugins: [
     react(),
+    {
+      // A host that cannot set headers still gets the policy from the page itself.
+      name: 'content-security-policy',
+      apply: 'build',
+      transformIndexHtml: (html) =>
+        html.replace('</head>', `  <meta http-equiv="Content-Security-Policy" content="${contentSecurityPolicy}" />\n  </head>`),
+    },
     VitePWA({
       // "prompt": a new version waits until the user reloads, so a deploy never
       // reloads the page in the middle of a half-filled form.
@@ -80,7 +121,7 @@ export default defineConfig({
     proxy: apiProxy,
   },
   // `vite preview` serves the production build (with its real service worker) for testing the PWA.
-  preview: { port: 4173, proxy: apiProxy },
+  preview: { port: 4173, proxy: apiProxy, headers: securityHeaders },
   test: {
     environment: 'jsdom',
     env: { VITE_API_BASE: 'http://localhost/api/v1' },

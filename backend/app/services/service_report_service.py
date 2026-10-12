@@ -110,5 +110,13 @@ async def review_report(
 
     report.reviewed_by = actor.id
     report.reviewed_at = datetime.now(UTC)
+    await record_audit_log(
+        db,
+        actor_user_id=actor.id,
+        action="service_report.reviewed",
+        entity_type="service_report",
+        entity_id=report.id,
+        new_value={"service_call_id": str(report.service_call_id)},
+    )
     await db.flush()
     return report

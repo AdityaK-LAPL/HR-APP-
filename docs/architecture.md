@@ -66,7 +66,7 @@ Rules:
 - `users` table stores the login identity (`employee_code`, unique, company-assigned — see Open Questions on generation rule) and profile fields (name, designation, role, manager_id, active flag).
 - A separate `user_credentials` table stores `password_hash` (Argon2id) and password metadata (last changed, must-reset flag), kept apart from `users` so profile reads never need to touch credential data.
 - FastAPI issues its own tokens on successful login: a short-lived **access token** (JWT, ~15 min) and a longer-lived **refresh token** (opaque, random, stored server-side hashed in a `sessions` table, rotated on every use, revocable individually or all-at-once per user).
-- Tokens are delivered as `httpOnly`, `Secure`, `SameSite=Strict` cookies (PWA-friendly, avoids exposing tokens to JS/XSS) with CSRF-token double-submit protection on state-changing requests. (Bearer-header mode can be added later if a non-browser client needs it.)
+- Tokens are delivered as `httpOnly` cookies - `Secure` whenever `ENVIRONMENT=production`, `SameSite=Lax` (the refresh cookie is also scoped to `/api/v1/auth`) - which keeps them away from JavaScript/XSS. State-changing requests need a CSRF token (double-submit: the readable `csrf_token` cookie echoed in `X-CSRF-Token`); `Lax` plus that custom header plus a CORS allow-list is what stops cross-site writes. (Bearer-header mode can be added later if a non-browser client needs it.)
 - Postgres RLS still needs to know who the caller is even though we bypass Supabase Auth's `auth.uid()`. FastAPI opens each DB transaction and runs `SET LOCAL app.user_id`, `SET LOCAL app.user_role` (and similar GUCs) after validating the JWT, so RLS policies (see `permissions.md` §5) can reference `current_setting('app.user_id')`. This keeps Postgres-level authorization in sync with the API layer without depending on Supabase's own auth product.
 - **Password reset without email/phone/OTP**: since there is no self-service recovery channel by design, reset must be an administrative action — a Manager (for their own employees) or Owner can force-set/reset a user's password, which invalidates all that user's existing sessions. This is called out explicitly in Open Questions for business sign-off.
 
@@ -75,7 +75,13 @@ Rules:
 | Token | Lifetime | Storage | Revocation |
 |---|---|---|---|
 | Access token (JWT) | ~15 min | httpOnly cookie | Expires naturally; also invalid once user is deactivated (checked on each request) |
-| Refresh token | ~7–30 days (configurable) | httpOnly cookie + hashed row in `sessions` | Rotated every use; Owner/Manager-triggered password reset revokes all sessions for that user; user-initiated logout revokes the one session |
+| Refresh token | 14 days by default (configurable), renewed on every use | httpOnly cookie + hashed row in `sessions` | Rotated every use; **presenting an already-rotated token again (after a 60-second grace for races) is treated as theft and ends every session of that person** (`user.refresh_token_reuse` in the audit trail); a password change or reset revokes all sessions for that user; logout revokes the one session |
+
+**Known limit:** the access token is stateless, so a *copy* of it stays valid until it expires (15 minutes) even after logout or a password change - the refresh token is what is revoked. Deactivation is checked on every request, and an account with a temporary password can do nothing but change it. Making revocation instant would cost a session lookup on every request.
+
+### Start-up safety
+
+The application refuses to start (outside the automated test run) with a `JWT_SECRET_KEY` shorter than 32 characters or copied from the example, and in production also with `DEBUG` on, no `CORS_ALLOWED_ORIGINS`, or any origin that is not `https://` (never `*`: cookies are sent with credentials).
 
 ## 5. Authorization Architecture (summary — full detail in `permissions.md`)
 
@@ -87,10 +93,10 @@ Rules:
 
 ## 6. File / Attachment Handling
 
-- Single private Supabase Storage bucket (`attachments`), path convention `{entity_type}/{entity_id}/{uuid}-{original_filename}`.
+- Single private Supabase Storage bucket (`attachments`, public access off - verified), path convention `{entity_type}/{entity_id}/{uuid}{extension}`: **the client's filename never reaches the storage path or URL**; it is cleaned (no directories, control characters, 150-character cap) and kept only as display text, offered back as the download name through `Content-Disposition: attachment` with an RFC 5987 `filename*`.
 - An `attachments` table records metadata (owner entity type/id, uploader, mime type, size, storage path) so attachments are queryable/auditable independent of the storage backend.
 - Uploads validated server-side: allow-listed extensions, size ceiling, re-checked by content sniffing (magic-byte signatures, not just the client-supplied extension), and served only via short-lived signed URLs — never a public bucket.
-- **Implementation note (Phase 6):** the storage layer (`app/services/storage.py`) is a small backend-agnostic interface (`upload`/`download`/`generate_signed_url`/`delete`) with two implementations, chosen automatically from configuration: `SupabaseStorage` (calls the Supabase Storage REST API directly, no SDK dependency, for full visibility into the exact request/response shape) once `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are set, and `LocalFilesystemStorage` (real files under a local directory) whenever they aren't — which is every environment so far, including this one, since no Supabase project has been connected. `LocalFilesystemStorage` is fully functional and covered by tests that don't need a database at all (`tests/test_storage.py`); `SupabaseStorage` is written but has not been exercised against a real Supabase project — treat it with the same "written, not yet verified" status as the rest of this backend's infrastructure-dependent pieces (see `docs/development-status.md`).
+- **Implementation note (Phase 6):** the storage layer (`app/services/storage.py`) is a small backend-agnostic interface (`upload`/`download`/`generate_signed_url`/`delete`) with two implementations, chosen automatically from configuration: `SupabaseStorage` (calls the Supabase Storage REST API directly, no SDK dependency, for full visibility into the exact request/response shape) once `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are set, and `LocalFilesystemStorage` (real files under a local directory) whenever they aren't — which is the case wherever those variables are absent. The development environment is connected to a Supabase project, so `SupabaseStorage` has been exercised against it by the attachment tests and the browser audits; `LocalFilesystemStorage` remains the fallback for CI. `storage.objects` has row-level security on and no policies, so the project's public API key cannot read or write files; every file access goes through this application, which checks the caller's right to the owning record first.
 
 ## 7. Audit Logging
 
@@ -104,7 +110,15 @@ Rules:
 ## 9. Secrets & Configuration
 
 - All secrets (DB connection string, JWT signing key, Supabase service key) come from environment variables, never committed. A `.env.example` (no real values) documents required variables. Production secrets are managed via the hosting platform's secret store.
-- CORS is restricted to the known frontend origin(s) (configured per environment), not `*`.
+- CORS is restricted to the known frontend origin(s) (configured per environment), not `*` - the application will not start in production otherwise.
+
+## 12. Browser and response hardening (added by the final audit)
+
+- Every API response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and under `/api/` also `Cache-Control: no-store` and a `default-src 'none'` content-security-policy; production adds `Strict-Transport-Security`.
+- The single-page app is built with a strict content-security-policy (scripts, styles, fonts, images, connections and workers from its own origin only; no objects, no framing; forms and `<base>` locked to the origin) both as a `<meta>` tag and as the header set `vite preview` sends - the production static host must send the same headers (`frontend/vite.config.ts`, `securityHeaders`).
+- Anything that depends on *which endpoint* a request is (the temporary-password restriction, the login rate limit, the header policy) uses the path the router matched, never `request.url`, which Starlette rebuilds from the client-supplied `Host` header.
+- Passwords: at least 8 characters, not a common password, not containing the person's employee ID (Argon2id, 200-character cap).
+- The application's database role holds no `DELETE` privilege (except on the reporting-line closure its own trigger maintains): history is preserved by the database, not only by the code. Every `SECURITY DEFINER` function pins `search_path = public, pg_temp`.
 
 ## 10. Non-Goals
 

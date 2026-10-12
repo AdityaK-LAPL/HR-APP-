@@ -53,6 +53,13 @@ python -m scripts.seed_owner --employee-code OWN001 --name "Jane Doe"
 OWNER_PASSWORD='...' python -m scripts.seed_owner
 ```
 
+If the Owner is ever locked out (five failed sign-ins lock an account for 15 minutes, and anyone who knows an employee ID can cause that), unlock it, or set a new temporary password, from the server:
+
+```bash
+python -m scripts.recover_account --employee-code OWN001                  # unlock only
+python -m scripts.recover_account --employee-code OWN001 --reset-password  # new temporary password, printed once
+```
+
 It is idempotent (does nothing if the code exists) and creates the account with `must_reset = true`. **The test suite truncates the business tables**, so re-run the seed after running `pytest` against a shared development database.
 
 ## Row-level security
@@ -86,6 +93,6 @@ backend/
     schemas/     # Pydantic request/response models (added per phase)
     services/    # business logic + authorization decisions (added per phase)
   alembic/       # migrations (0001-0015)
-  scripts/       # one-off admin scripts (seed_owner)
+  scripts/       # one-off admin scripts (seed_owner, recover_account)
   tests/
 ```

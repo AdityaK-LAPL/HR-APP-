@@ -31,8 +31,22 @@ class InMemoryRateLimiter:
         self.window_seconds = window_seconds
         self._hits: dict[str, deque[float]] = defaultdict(deque)
 
+    # Keys are client IPs, so without clean-up the table grows with every address ever seen.
+    _SWEEP_AT = 4096
+
+    def _sweep(self, now: float) -> None:
+        stale = [
+            key
+            for key, hits in self._hits.items()
+            if not hits or now - hits[-1] > self.window_seconds
+        ]
+        for key in stale:
+            del self._hits[key]
+
     def check(self, key: str) -> None:
         now = time.monotonic()
+        if len(self._hits) >= self._SWEEP_AT:
+            self._sweep(now)
         hits = self._hits[key]
         while hits and now - hits[0] > self.window_seconds:
             hits.popleft()
@@ -64,7 +78,7 @@ def rate_limit_login(request: Request) -> None:
     exceeds the configured request rate against this endpoint."""
 
     limiter = _get_login_limiter()
-    limiter.check(f"{request.url.path}:{_client_ip(request)}")
+    limiter.check(f"{request.scope['path']}:{_client_ip(request)}")
 
 
 def reset_rate_limits() -> None:

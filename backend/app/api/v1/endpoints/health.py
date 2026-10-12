@@ -6,7 +6,6 @@ not by the frontend application. Reveals no business data.
 
 from fastapi import APIRouter, status
 
-from app.core.config import get_settings
 from app.core.errors import AppError
 from app.db.session import check_database_connection
 
@@ -15,8 +14,7 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health")
 async def health() -> dict:
-    settings = get_settings()
-    return {"status": "ok", "environment": settings.environment}
+    return {"status": "ok"}
 
 
 @router.get("/health/db")

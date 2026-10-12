@@ -67,6 +67,9 @@ class Session(Base, UUIDPrimaryKeyMixin):
     created_at: Mapped[datetime] = mapped_column(nullable=False, server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(nullable=False, index=True)
     revoked_at: Mapped[datetime | None] = mapped_column()
+    # Set when the refresh token was *used* (swapped for a new one), as opposed to being revoked by
+    # a sign-out or password change. Presenting such a token again means two parties hold it.
+    rotated_at: Mapped[datetime | None] = mapped_column()
 
 
 class ManagerHierarchyClosure(Base):

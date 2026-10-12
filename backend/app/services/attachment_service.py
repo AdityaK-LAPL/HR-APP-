@@ -9,6 +9,7 @@ delete), since "can view" and "can attach a file" are not always the same
 set of people - see _check_write_access.
 """
 
+import re
 import uuid
 from pathlib import PurePosixPath
 
@@ -28,6 +29,7 @@ from app.services import (
     service_report_service,
     task_service,
 )
+from app.services.audit_service import record_audit_log
 from app.services.permission_service import in_scope
 from app.services.storage import get_storage_backend, guess_content_type
 
@@ -56,7 +58,32 @@ _MAGIC_SIGNATURES: dict[bytes, tuple[str, ...]] = {
     b"GIF89a": (".gif",),
     b"PK\x03\x04": (".docx", ".xlsx"),  # zip-based Office formats
 }
-_SIGNATURE_REQUIRED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".docx", ".xlsx"}
+_SIGNATURE_REQUIRED_EXTENSIONS = {
+    ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".docx", ".xlsx",
+}  # fmt: skip
+
+
+_MAX_FILENAME_LENGTH = 150
+_CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def sanitize_filename(raw: str) -> str:
+    """The name shown to people: no directories, no control characters, a sane length.
+
+    A client can send anything as a filename ("../../x.png", "a?b#c.png", a 300-character name,
+    emoji). It is only ever *displayed* (and offered as the download name) - the file itself is
+    stored under a server-generated name - but it is still cleaned so it can never carry a path
+    or break a header.
+    """
+    name = _CONTROL_CHARACTERS.sub("", raw).replace("\\", "/").rsplit("/", 1)[-1]
+    name = " ".join(name.split()).strip(" .")
+    if len(name) > _MAX_FILENAME_LENGTH:
+        stem, dot, ext = name.rpartition(".")
+        if dot and len(ext) < 12:
+            name = stem[: _MAX_FILENAME_LENGTH - len(ext) - 1] + dot + ext
+        else:
+            name = name[:_MAX_FILENAME_LENGTH]
+    return name
 
 
 def _validate_upload(filename: str, content: bytes) -> None:
@@ -163,10 +190,13 @@ async def upload_attachment(
     if not await _check_write_access(db, actor, entity_type, entity):
         raise AuthorizationError("You do not have permission to attach files to this record.")
 
+    filename = sanitize_filename(filename) or "upload"
     _validate_upload(filename, content)
     content_type = guess_content_type(filename)
 
-    storage_path = f"{entity_type}/{entity_id}/{uuid.uuid4()}-{filename}"
+    # Stored under a name the server makes up: the client's filename never reaches a path or URL.
+    extension = PurePosixPath(filename).suffix.lower()
+    storage_path = f"{entity_type}/{entity_id}/{uuid.uuid4()}{extension}"
     storage = get_storage_backend()
     await storage.upload(storage_path, content, content_type)
 
@@ -181,6 +211,18 @@ async def upload_attachment(
     )
     db.add(attachment)
     await db.flush()
+    await record_audit_log(
+        db,
+        actor_user_id=actor.id,
+        action="attachment.uploaded",
+        entity_type=entity_type,
+        entity_id=entity_id,
+        new_value={
+            "attachment_id": str(attachment.id),
+            "filename": filename,
+            "bytes": len(content),
+        },
+    )
     return attachment
 
 
@@ -254,4 +296,12 @@ async def delete_attachment(
     # storage, per api-contract.md section 15, unless the Owner purges it
     # through a separate operational process, not built here.
     attachment.is_active = False
+    await record_audit_log(
+        db,
+        actor_user_id=actor.id,
+        action="attachment.removed",
+        entity_type=attachment.entity_type,
+        entity_id=attachment.entity_id,
+        old_value={"attachment_id": str(attachment.id), "filename": attachment.original_filename},
+    )
     await db.flush()

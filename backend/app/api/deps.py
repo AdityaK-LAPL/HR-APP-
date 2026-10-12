@@ -24,6 +24,9 @@ from app.db.session import get_db, set_rls_context
 from app.models.identity import User, UserCredentials
 from app.schemas.principal import CurrentUser
 
+# Decisions about *which endpoint this is* use `request.scope["path"]` - the path the router
+# matched - never `request.url.path`, which Starlette rebuilds from the client-supplied Host header
+# and which a crafted Host can make differ from the real path (see tests/test_security_audit.py).
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 # The only endpoints usable while the account still has a temporary password.
@@ -72,7 +75,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
         if not header_token or not cookie_token or header_token != cookie_token:
             raise AuthorizationError("Missing or invalid CSRF token.")
 
-    if must_reset and request.url.path not in MUST_RESET_ALLOWED_PATHS:
+    if must_reset and request.scope['path'] not in MUST_RESET_ALLOWED_PATHS:
         raise PasswordChangeRequiredError("You must change your temporary password first.")
 
     return CurrentUser(

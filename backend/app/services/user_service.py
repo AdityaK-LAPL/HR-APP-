@@ -38,7 +38,7 @@ async def create_user(db: AsyncSession, *, actor: CurrentUser, payload: UserCrea
     if existing is not None:
         raise ConflictError("employee_code is already in use.")
 
-    validate_password_strength(payload.initial_password)
+    validate_password_strength(payload.initial_password, employee_code=payload.employee_code)
 
     user = User(
         employee_code=payload.employee_code,

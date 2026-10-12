@@ -105,7 +105,9 @@ export const idsOf = (body) => itemsOf(body).map((x) => x.id)
 export async function launch() { return chromium.launch() }
 
 /** Fixed passwords for the seeded audit company (changed from their temporary ones on first login). */
-export const PW = (code) => `Audit#${code}#2026`
+const mix = (code) => [...code].reverse().join('')
+export const TEMP = (code) => `Temp#${mix(code)}#2026`
+export const PW = (code) => `Audit#${mix(code)}#2026`
 
 /**
  * Seeds a company through the real API: Owner -> two peer branches.
@@ -127,7 +129,7 @@ export async function seedCompany() {
   }
   apis.OWN001 = await login(OWNER.code, OWNER.password)
   const me = await apis.OWN001.must('GET', '/auth/me')
-  const mk = (code, name, designation, role, manager_id) => apis.OWN001.must('POST', '/users', { employee_code: code, name, designation, role, manager_id, initial_password: `Temp#${code}#2026` })
+  const mk = (code, name, designation, role, manager_id) => apis.OWN001.must('POST', '/users', { employee_code: code, name, designation, role, manager_id, initial_password: TEMP(code) })
   const users = {}
   users.OWN001 = me
   users.MGRA = await mk('MGRA', 'Alice Manager', 'Service Manager', 'manager', me.id)
@@ -135,7 +137,7 @@ export async function seedCompany() {
   users.EMPA1 = await mk('EMPA1', 'Ann Engineer', 'Service Engineer', 'employee', users.MGRA.id)
   users.EMPA2 = await mk('EMPA2', 'Abe Technician', 'Technician', 'employee', users.MGRA.id)
   users.EMPB1 = await mk('EMPB1', 'Ben Engineer', 'Service Engineer', 'employee', users.MGRB.id)
-  for (const code of ['MGRA', 'MGRB', 'EMPA1', 'EMPA2', 'EMPB1']) apis[code] = await login(code, `Temp#${code}#2026`)
+  for (const code of ['MGRA', 'MGRB', 'EMPA1', 'EMPA2', 'EMPB1']) apis[code] = await login(code, TEMP(code))
 
   const cfg = (await apis.OWN001.must('GET', '/config'))
   const today = cfg.today

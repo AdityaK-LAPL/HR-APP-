@@ -8,8 +8,10 @@ secret value - see .env.example for the variables a deployment must supply.
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+MIN_JWT_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -103,6 +105,37 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _refuse_unsafe_configuration(self) -> "Settings":
+        """Fail at start-up, not in production traffic, when a secret or switch is unsafe.
+
+        The JWT key signs every session, so a short or copied-from-the-example value would let
+        anyone mint an Owner token. `test` (the automated suite) is the only exemption.
+        """
+        if self.environment.lower() == "test":
+            return self
+        problems: list[str] = []
+        key = self.jwt_secret_key
+        if len(key) < MIN_JWT_SECRET_LENGTH or key.lower().startswith(("changeme", "test-secret")):
+            problems.append(
+                f"JWT_SECRET_KEY must be a random value of at least {MIN_JWT_SECRET_LENGTH} "
+                'characters (python -c "import secrets; print(secrets.token_urlsafe(64))")'
+            )
+        if self.is_production:
+            if self.debug:
+                problems.append("DEBUG must be false in production")
+            if not self.cors_allowed_origins:
+                problems.append("CORS_ALLOWED_ORIGINS must list the production frontend origin")
+            for origin in self.cors_allowed_origins:
+                if origin == "*" or not origin.startswith("https://"):
+                    problems.append(
+                        f"CORS_ALLOWED_ORIGINS entry {origin!r} must be an https:// origin "
+                        "(never '*': cookies are sent with credentials)"
+                    )
+        if problems:
+            raise ValueError("Unsafe configuration: " + "; ".join(problems))
+        return self
 
     @property
     def is_production(self) -> bool:
