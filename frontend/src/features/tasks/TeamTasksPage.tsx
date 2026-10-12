@@ -92,9 +92,9 @@ export function TeamTasksPage() {
           <div className="stat-value">{blocked ?? '…'}</div>
           <div className="stat-label">Blocked</div>
         </button>
-        <button type="button" className="stat glass-card" onClick={() => setParams({ date: today })}>
+        <button type="button" className="stat glass-card" onClick={() => setParams({ status: '', date: '' })}>
           <div className="stat-value">{summary.data?.total ?? '…'}</div>
-          <div className="stat-label">All tasks (show today&apos;s)</div>
+          <div className="stat-label">All tasks</div>
         </button>
       </div>
 

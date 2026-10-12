@@ -90,7 +90,7 @@ export const ROUTES: readonly RouteSpec[] = [
   },
   {
     path: 'eod',
-    title: 'End-of-day reports',
+    title: 'EOD reports',
     icon: FileText,
     section: 'Workspace',
     roles: ALL_ROLES,

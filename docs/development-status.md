@@ -20,9 +20,38 @@ Last updated: 2026-10-11
 | 12 | Frontend: Notification experience | **Complete for what the backend supports** - see "Frontend Phase 7" below (the backend creates no notifications yet) |
 | 13 | Frontend: PWA and cross-platform experience | **Complete** - see "Frontend Phase 8" below (no offline business functionality, by design) |
 | 14 | Frontend <-> backend integration audit | **Complete** - see "Frontend Phase 9" below (2 backend fixes, 2 frontend fixes, 303-check audit now kept in `frontend/e2e/`) |
-| 15-18 | UI/UX pass, final audits, UAT | Not started |
+| 15 | UI/UX quality pass | **Complete** - see "Frontend Phase 10" below (no backend change) |
+| 16-18 | Final security audit, production readiness, UAT | Not started |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
+## Frontend Phase 10: UI/UX quality pass (Prompt 15) - 2026-10-12
+
+Method: a company seeded with deliberately awkward data (a 49-character person name with a 70-character designation, an 80-character customer name with a long address, a 170-character task title and a 340-character description, an overdue task, 25 tasks for list length, a 19-day leave with a long reason, empty accounts for the "nothing yet" screens), then **every major screen of the Employee, Manager and Owner experiences (plus a field technician with long names) was captured and read at desktop (1366), tablet portrait (768), tablet landscape (1024) and phone (390 / 360)** - about 150 screens, plus the open forms and confirmations, the empty states and the loading / error / connection-lost states. Nothing was redesigned; the three roles already share one layout, one component set and one menu, differing only in what they are given.
+
+### What was reviewed and found fine
+Consistency (one set of buttons, status badges, cards, tiles and dialogs everywhere), typography and spacing, dates and times (one formatter, `12 Oct 2026, 06:48 am`, company time; native date pickers follow the device language), destructive actions (every remove / revoke / archive / deactivate / cancel / punch-out already asks first, in words that say what will happen), empty states (each says what the screen is for and what to do), error states (plain message, support reference, Try again), long names and text (wrap inside cards and cells, no overflow), the technician workflow on a phone (assigned call as a card, tap-to-call and Maps links, visit and report as bottom sheets), forms (required marks, hints, inline errors, sensible defaults), and accessibility - **axe-core WCAG A/AA over 175 screens and open dialogs across 5 viewports and 3 roles: no violations, no horizontal scrolling, no touch target under 44 px**.
+
+### Problems found and fixed
+| # | Where | Problem | Fix |
+|---|---|---|---|
+| 1 | Reports, desktop and phone | The period switch ("Today / Last 7 days / Last 30 days / This month / Custom") was squeezed into a 260 px box: its labels broke over three lines and, on a phone, it **overlapped the Manager filter** | The control keeps its natural width and wraps its buttons; labels never break |
+| 2 | Reports | Help text talked about "the API's lists" | Rewritten for people ("Click a column heading in the tables below to sort them"); the Manager filter's long placeholder, cut off on phones, is now "Everyone" |
+| 3 | Tablets (768-1179 px) | Tables with 6-9 columns were squeezed into a narrow content area: task titles broke letter by letter, names broke mid-word, the leave table's Approve / Reject buttons were cut off | Below 1180 px lists are **cards, two to a row from 640 px**; tables appear only where there is room. Cells now wrap at word boundaries instead of anywhere ("Emplo/yee" is gone) |
+| 4 | Every long form (Record a visit, Log a service call ...) | On a phone the Save button was at the bottom of a long scroll | Dialog buttons **stay in view** while the fields scroll |
+| 5 | Team tasks | The three summary tiles were centred while every other tile row is left-aligned, and the third said "All tasks (show today's)" while showing all tasks | Same look as the other tiles (also a hover state, since they filter the list); label "All tasks", and a click clears the filters |
+| 6 | Projects (phone) | The "Show" filter's "All visible projects" was cut off | "All visible" |
+| 7 | Phone header | The EOD screen's title read "End-of-day repo..." | "EOD reports", matching the menu |
+| 8 | Reports | The "Day" picker in the daily check stretched across the whole card | Fixed width |
+
+Do not change backend behaviour: nothing in `backend/` was touched. The unit-test suite models a 1366 px desktop now (it was 1024), because tables start at 1180 px.
+
+### Known, deliberately left
+- Native date and time pickers show the device's own format (`10/12/2026` on a US-language device); everywhere the app writes a date itself it uses `12 Oct 2026`.
+- The Owner's greeting uses the first word of the account name ("Hello, Company"): it will read naturally once the Owner's real name is entered.
+- Hidden file inputs (the real control is the visible Upload button) are 1 px by design.
+
+**Verification:** `tsc -b` clean, oxlint 0 warnings, production build, **364 Vitest tests**, the screen-by-screen visual review above, and a final axe / overflow / touch-target sweep of 175 screens and dialogs.
 
 ## Frontend Phase 9: Frontend <-> backend integration audit (Prompt 14) - 2026-10-11
 

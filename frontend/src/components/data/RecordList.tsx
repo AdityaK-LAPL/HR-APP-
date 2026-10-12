@@ -13,7 +13,8 @@ export interface Column<T> {
 }
 
 /**
- * Rows as a table on tablets/desktops and as cards on phones (no sideways-scrolling tables).
+ * Rows as a table on wide screens and as cards on phones and tablets (no sideways-scrolling or
+ * squeezed tables: below ~1180 px the content area is too narrow for 6-9 columns).
  * `rowHref` makes the primary cell a real link, so rows are keyboard- and screen-reader-friendly.
  */
 export function RecordList<T>({
@@ -29,7 +30,7 @@ export function RecordList<T>({
   rowHref?: (row: T) => string
   caption: string
 }) {
-  const wide = useMediaQuery('(min-width: 768px)')
+  const wide = useMediaQuery('(min-width: 1180px)')
   const primary = columns.find((column) => column.primary) ?? columns[0]
 
   if (wide) {

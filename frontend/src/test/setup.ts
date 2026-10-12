@@ -14,8 +14,9 @@ if (typeof HTMLDialogElement !== 'undefined') {
   }
 }
 
-// jsdom has no matchMedia. Model `(min-width: Npx)` against window.innerWidth (jsdom: 1024, a
-// desktop layout); a test can set `window.innerWidth = 390` before rendering to get the phone layout.
+// jsdom has no matchMedia. Model `(min-width: Npx)` against window.innerWidth (set to a 1366 px
+// desktop below); a test can set `window.innerWidth = 390` before rendering to get the phone layout.
+window.innerWidth = 1366
 window.matchMedia ??= ((query: string) => {
   const min = /min-width:\s*(\d+)px/.exec(query)
   return {
@@ -33,7 +34,7 @@ window.matchMedia ??= ((query: string) => {
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => {
   cleanup()
-  window.innerWidth = 1024
+  window.innerWidth = 1366
   server.resetHandlers()
   document.cookie = 'csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
 })

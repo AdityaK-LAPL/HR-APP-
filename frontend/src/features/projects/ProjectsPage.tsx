@@ -91,7 +91,7 @@ export function ProjectsPage() {
             value={params.scope}
             onChange={(event) => setParams({ scope: event.target.value })}
             options={[{ value: 'managed', label: 'Managed by me' }]}
-            placeholder="All visible projects"
+            placeholder="All visible"
           />
         )}
         <Select

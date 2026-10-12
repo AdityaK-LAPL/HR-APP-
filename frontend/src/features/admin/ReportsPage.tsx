@@ -79,7 +79,7 @@ export function ReportsPage() {
         description={isOwner ? 'Company-wide figures straight from the records. Narrow them with the filters below.' : 'Figures for your team and the work you can see. Narrow them with the filters below.'}
       />
       <div className="toolbar">
-        <div className="field">
+        <div className="field field-fit">
           <span className="field-label" id="period-label">
             Period (attendance)
           </span>
@@ -105,7 +105,7 @@ export function ReportsPage() {
           value={params.manager}
           onChange={(event) => setParams({ manager: event.target.value })}
           options={managers.options}
-          placeholder={isOwner ? 'Whole company' : 'Everyone I can see'}
+          placeholder={isOwner ? 'Whole company' : 'Everyone'}
         />
         <Select
           label="Project (tasks)"
@@ -122,10 +122,10 @@ export function ReportsPage() {
       </div>
       <p style={{ marginBottom: 12, fontSize: 13 }}>
         The period applies to attendance. “Manager” limits attendance to that manager&apos;s direct reports and service activity to calls that manager is
-        responsible for. There is no sort option on the API&apos;s lists, so only these report tables (which show everything) can be sorted.
+        responsible for. Click a column heading in the tables below to sort them.
       </p>
 
-      <Section title={`Daily check · ${formatDate(day)}`} action={<Input label="Day" type="date" value={day} max={today} onChange={(event) => setParams({ day: event.target.value })} />}>
+      <Section title={`Daily check · ${formatDate(day)}`} action={<div className="field-narrow"><Input label="Day" type="date" value={day} max={today} onChange={(event) => setParams({ day: event.target.value })} /></div>}>
         <QueryBoundary query={check.people} skeleton={<Skeleton height={60} />}>
           {() => (
             <div className="form-grid two">
