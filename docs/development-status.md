@@ -23,9 +23,25 @@ Last updated: 2026-10-12
 | 15 | UI/UX quality pass | **Complete** - see "Frontend Phase 10" below (no backend change) |
 | 16 | Final security audit | **Complete** - see "Final security audit (Prompt 16)" below: 16 findings fixed, residual risks listed; migration 0019 |
 | 17 | Production-readiness review | **Complete** - checklist in `docs/production-readiness.md`, runbook in `docs/deployment.md`; **1 RED** (no backup of attachment files), the rest GREEN or YELLOW decisions |
-| 18 | UAT checklist | Not started |
+| 18 | UAT preparation | **Complete** - 116 scenarios in `docs/uat/` (spreadsheet + document + guide), dress-rehearsed; the UAT itself is for the company's users to run |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
+## User acceptance testing preparation (Prompt 18) - 2026-10-13
+
+**What exists** (`docs/uat/`): **`UAT-scenarios.xlsx`** (the working copy for testers), **`UAT-scenarios.md`** (printable copy), **`README.md`** (how to prepare, run, log defects and sign off) and `scenarios.py` + `build_uat.py` (the single source and generator - edit scenarios in `scenarios.py`, then `python build_uat.py`, which needs `openpyxl`).
+
+**116 scenarios**, each with Test ID, Role, Steps, Expected result, Actual result, Pass/Fail (Pass / Fail / Blocked / N/A) and Notes (plus Area, Device, Tester, Date in the spreadsheet):
+- **Owner (23):** first sign-in and forced password change, creating managers and employees, reporting structure, moving someone, loops, roles both ways, deactivate / reactivate, password reset, permissions (Allow, Deny beats Allow, revoke, duplicate refused, project-level), projects (archive / restore), company tasks, leave of any branch, company reports, audit trail, customers / machines / service calls, "Not available" for others, profile.
+- **Manager (31):** team and person pages, profile edit and password reset, assigning / editing / reassigning tasks, **a manager's task for herself**, no cross-branch assignment, filters and overdue, projects, leave approval (reason mandatory, own leave waits on the Owner, other branch invisible), EOD, attendance, calendar, service management (customer, machine, log call, assign, review report, resolve, unassign, filters), reports and the daily check, isolation from the other branch.
+- **Employee (29):** sign-in and lock-out, My day, tasks (status, completion confirmation, no edit rights), projects, leave (apply, date check, cancel, decision), EOD (submit, validation, unsaved-text guard), attendance (punch with / without location, punch out rule, history), service work on a phone (visit, report), calendar, privacy, notifications.
+- **Cross-cutting (33):** desktop, tablet, phone and install; **session** refresh (idle 20 minutes, refresh, back / forward, sign-out in another tab, password reset ending sessions, two devices); **network interruption** (offline, reload offline, drop mid-form, slow network with a double tap, server down); **attachments** (upload / download / remove, wrong types, size, other records, who may open, unusual names); **search**; **filtering**; **date handling** (company time, day boundary, leave across a month end, native pickers); accessibility; error wording.
+
+**Dress rehearsal.** The scenarios were not just written - the cast (Owner, two managers, three employees, a customer, machine, call, leave) was built through the API and `frontend/e2e/uat-rehearsal.mjs` **walked 30 of the scenarios whose screen texts and behaviour the earlier audits did not already prove, in a real browser, against the production build: 30/30 pass.** It corrected the scenario sheet in places (for example the Owner cannot create a reporting loop because the screen never offers someone from the manager's own branch; the employee's EOD button reads "Submit today's report"; the permission effect is "Allow / Deny"). Every other scenario is a workflow the earlier real-browser audits already exercised. **No blocking defect was found; no application code was changed in this phase.** (The rehearsal's own first run failed on six checks, all because the remote database answered slower than the test's fixed waits; the checks now wait for the text instead.)
+
+**Not run here, deliberately:** the UAT itself - it needs real users, real phones and an HTTPS address. Scenarios that need HTTPS (punch-in with GPS, installing the app, offline reload) are marked in the README and must be Blocked, not Pass, if run over plain http.
+
+**Verification:** UAT dress rehearsal 30/30; no application change (backend 198 tests and the frontend gate from Prompt 17 still stand).
 
 ## Production readiness review (Prompt 17) - 2026-10-12
 

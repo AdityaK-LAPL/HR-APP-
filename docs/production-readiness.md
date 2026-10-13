@@ -88,7 +88,7 @@ Legend - **GREEN** ready; **YELLOW** a decision or a piece of configuration is n
 | Automated tests | GREEN | Backend 196 (against live Supabase), frontend 364, plus the real-stack audits (`frontend/e2e`: API, authorization sweep, browser, CSP) |
 | Continuous integration | YELLOW | None; the audits and the suite are run by hand. See Process above |
 | Load / capacity test | YELLOW | Not done (see Responsiveness) |
-| User acceptance | YELLOW | Prompt 18 |
+| User acceptance | YELLOW | The UAT pack is ready (`docs/uat/`, 116 scenarios, dress-rehearsed); the exercise itself must be run by the company's users on real devices over HTTPS |
 | Documentation | GREEN | `architecture.md`, `database.md`, `api-contract.md`, `permissions.md`, `development-status.md`, this review, `deployment.md`, `backend/README.md`, `frontend/README.md`, `frontend/e2e/README.md`. Stale statements found in this review ("NOT YET EXECUTED", "storage not verified") were corrected |
 
 ### Product scope and data protection (not engineering defects, but go-live decisions)
