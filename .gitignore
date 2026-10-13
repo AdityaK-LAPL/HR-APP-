@@ -12,3 +12,7 @@ Thumbs.db
 
 # Backend and frontend each have their own .gitignore for
 # .venv/, node_modules/, .env, caches, build output, etc.
+
+# Planning documents / generated sample reports
+*.docx
+docs/Employee Name*.xlsx
