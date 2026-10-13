@@ -16,6 +16,7 @@ from collections import defaultdict, deque
 
 from fastapi import Request, status
 
+from app.core.client_ip import client_ip
 from app.core.config import get_settings
 from app.core.errors import AppError
 
@@ -55,10 +56,6 @@ class InMemoryRateLimiter:
         hits.append(now)
 
 
-def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
-
-
 _login_limiter: InMemoryRateLimiter | None = None
 
 
@@ -78,7 +75,7 @@ def rate_limit_login(request: Request) -> None:
     exceeds the configured request rate against this endpoint."""
 
     limiter = _get_login_limiter()
-    limiter.check(f"{request.scope['path']}:{_client_ip(request)}")
+    limiter.check(f"{request.scope['path']}:{client_ip(request) or 'unknown'}")
 
 
 def reset_rate_limits() -> None:

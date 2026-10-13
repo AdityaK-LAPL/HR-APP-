@@ -20,6 +20,13 @@ def _database_is_local(url: str) -> bool:
     return host in {"localhost", "127.0.0.1", "::1"}
 
 
+def _database_port(url: str) -> int | None:
+    try:
+        return urlsplit(url.replace("+asyncpg", "")).port
+    except ValueError:
+        return None
+
+
 def _database_requires_tls(url: str) -> bool:
     query = parse_qs(urlsplit(url.replace("+asyncpg", "")).query)
     modes = query.get("ssl", []) + query.get("sslmode", [])
@@ -50,6 +57,13 @@ class Settings(BaseSettings):
     # can raise these later without a code change.
     db_pool_size: int = Field(default=5)
     db_max_overflow: int = Field(default=2)
+
+    # Supabase's transaction pooler (port 6543) hands every transaction a different server
+    # connection, so a prepared statement made on one connection is missing on the next. Turn the
+    # driver's prepared-statement use off when connecting through it (needed on serverless hosts
+    # such as Vercel, where many short-lived instances share the pooler). A DATABASE_URL on port
+    # 6543 switches it off automatically; this setting forces it for other poolers.
+    db_disable_prepared_statements: bool = Field(default=False)
 
     # A connection the pooler silently stalls would otherwise leave a request waiting forever
     # (asyncpg has no default timeout). With these, a stalled query fails after
@@ -99,6 +113,14 @@ class Settings(BaseSettings):
     # question 6, still unresolved.
     login_rate_limit_max: int = Field(default=10)
     login_rate_limit_window_seconds: float = Field(default=60.0)
+
+    # Name of the request header in which the hosting platform puts the real client address
+    # (X-Forwarded-For on Vercel). Empty = use the directly connected peer, right when uvicorn runs
+    # with --proxy-headers behind a proxy you control. Set it ONLY when every request really comes
+    # through a platform that overwrites that header: otherwise a caller could forge their address
+    # and sidestep the login rate limit. The first address in the header is used; a value that is
+    # not an IP address is ignored.
+    client_ip_header: str = Field(default="")
 
     @field_validator("jwt_algorithm")
     @classmethod
@@ -169,6 +191,10 @@ class Settings(BaseSettings):
         if problems:
             raise ValueError("Unsafe configuration: " + "; ".join(problems))
         return self
+
+    @property
+    def database_prepared_statements_disabled(self) -> bool:
+        return self.db_disable_prepared_statements or _database_port(self.database_url) == 6543
 
     @property
     def is_production(self) -> bool:

@@ -144,3 +144,20 @@ DELETE FROM sessions WHERE greatest(expires_at, coalesce(revoked_at, expires_at)
 ```
 
 Soft-removed attachments stay in the bucket and in `attachments` (`is_active = false`); purge them only under a retention decision. `audit_logs` is append-only by design.
+
+## 10. Variant: everything on Vercel (one project, Vercel Services)
+
+Chosen on 2026-10-13 as an alternative to sections 4-5. `vercel.json` (repository root) defines two services in ONE project and so on one domain: `web` (the Vite build in `frontend/`, with the security headers and cache rules of section 5) and `api` (the FastAPI app in `backend/`, entrypoint `app.main:app`). `/api/*` goes to `api`, everything else to `web`; the API receives the original path (`/api/v1/...`), so no code depends on a prefix. Vercel Services is a **beta** feature and `vercel.json` has not been deployed from this repository yet.
+
+What differs from the single-process design, and what was done about it:
+
+| Topic | Consequence on Vercel | Handling |
+|---|---|---|
+| Request/response body limit | 4.5 MB per function call (413 `FUNCTION_PAYLOAD_TOO_LARGE`). Uploads and downloads pass through the API | Set `ATTACHMENT_MAX_SIZE_BYTES=4000000`. The web app shows "That file is too large to upload" for the platform's 413. Larger files need direct-to-Supabase uploads (not built) |
+| Client IP | Not the TCP peer | `CLIENT_IP_HEADER=x-forwarded-for` (Vercel overwrites that header with the caller's address). Never set it on a host that does not |
+| Login rate limit | In-memory, so counted **per function instance**: weaker than the one-process design. The per-account lock-out and the audit trail live in the database and are unaffected | Add a Vercel Firewall rate-limit rule on `POST /api/v1/auth/login` and `/api/v1/auth/refresh` (the shared limiter) |
+| Database connections | Many short-lived instances | Use the Supabase **transaction pooler** (same host, port **6543**). `DATABASE_URL` on 6543 turns the driver's prepared statements off automatically (`DB_DISABLE_PREPARED_STATEMENTS` forces it). Per-request `set_config(..., true)` is transaction-local, so row-level security works through it. **Not yet exercised against a real transaction pooler** - check sign-in and a role-restricted list on the first deployment |
+| Region | Functions run in `iad1` by default | Project Settings -> Functions -> Function Region: pick the one nearest the Supabase project |
+| Python | Pinned by `backend/.python-version` (3.14); dependencies from `backend/requirements.txt` (version ranges, not `requirements.lock`) | |
+
+Vercel project settings: import the repository with the root directory left at the repository root and the framework preset **Services**. Environment variables: the table in section 2, plus `CLIENT_IP_HEADER`, `ATTACHMENT_MAX_SIZE_BYTES` and the pooler URL above; do **not** set `VITE_API_BASE`. Set `CORS_ALLOWED_ORIGINS` to the final `https://<domain>`. Run `alembic upgrade head` and `python -m scripts.seed_owner` from a workstation against the production database (section 3), never from Vercel.

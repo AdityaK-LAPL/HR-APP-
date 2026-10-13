@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.client_ip import client_ip
 from app.core.cookies import REFRESH_TOKEN_COOKIE, clear_auth_cookies, set_auth_cookies
 from app.core.errors import AuthenticationError
 from app.core.rate_limit import rate_limit_login
@@ -29,10 +30,6 @@ async def _profile(db: AsyncSession, user: User) -> UserProfile:
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _client_ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
-
-
 @router.post(
     "/login",
     response_model=UserProfile,
@@ -50,7 +47,7 @@ async def login(
         employee_code=payload.employee_code,
         password=payload.password,
         user_agent=request.headers.get("user-agent"),
-        ip_address=_client_ip(request),
+        ip_address=client_ip(request),
     )
     set_auth_cookies(
         response,
@@ -78,7 +75,7 @@ async def refresh(
         db,
         raw_refresh_token=raw_refresh_token,
         user_agent=request.headers.get("user-agent"),
-        ip_address=_client_ip(request),
+        ip_address=client_ip(request),
     )
     set_auth_cookies(
         response,

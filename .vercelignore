@@ -1,0 +1,11 @@
+# Not needed to build or run either service
+.git
+.claude
+docs
+*.docx
+*.xlsx
+frontend/e2e
+frontend/node_modules
+backend/tests
+backend/.venv
+backend/var

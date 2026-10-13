@@ -64,10 +64,15 @@ export async function errorFromResponse(response: Response): Promise<ApiError> {
       fieldErrors[detail.field] = detail.message
     }
   }
+  // The hosting platform (not the API) answers 413 with a page when a request body is over its limit.
+  const fallbackMessage =
+    response.status === 413
+      ? 'That file is too large to upload. Choose a smaller file (a few MB at most).'
+      : `The request failed (HTTP ${response.status}).`
   return new ApiError({
     status: response.status,
     code: body?.error?.code ?? `http_${response.status}`,
-    message: body?.error?.message ?? `The request failed (HTTP ${response.status}).`,
+    message: body?.error?.message ?? fallbackMessage,
     fieldErrors,
     requestId: response.headers.get('X-Request-ID') ?? undefined,
   })

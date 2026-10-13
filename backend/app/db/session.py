@@ -7,6 +7,7 @@ Security who the current caller is, on the same transaction that will run
 the request's queries - see docs/permissions.md section 6.
 """
 
+import uuid
 from collections.abc import AsyncGenerator
 
 from sqlalchemy import text
@@ -21,6 +22,19 @@ from app.core.config import get_settings
 
 _settings = get_settings()
 
+_connect_args: dict = {
+    "command_timeout": _settings.db_command_timeout_seconds,
+    "timeout": _settings.db_connect_timeout_seconds,
+}
+if _settings.database_prepared_statements_disabled:
+    # Transaction-pooler mode: no named prepared statements, neither asyncpg's own cache nor
+    # SQLAlchemy's (see Settings.db_disable_prepared_statements).
+    _connect_args.update(
+        statement_cache_size=0,
+        prepared_statement_cache_size=0,
+        prepared_statement_name_func=lambda: f"__asyncpg_{uuid.uuid4()}__",
+    )
+
 engine: AsyncEngine = create_async_engine(
     _settings.database_url,
     echo=_settings.debug,
@@ -30,10 +44,7 @@ engine: AsyncEngine = create_async_engine(
     pool_pre_ping=True,
     pool_size=_settings.db_pool_size,
     max_overflow=_settings.db_max_overflow,
-    connect_args={
-        "command_timeout": _settings.db_command_timeout_seconds,
-        "timeout": _settings.db_connect_timeout_seconds,
-    },
+    connect_args=_connect_args,
 )
 
 AsyncSessionLocal = async_sessionmaker(

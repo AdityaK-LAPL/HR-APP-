@@ -20,6 +20,16 @@ describe('request building', () => {
   })
 })
 
+describe('platform errors', () => {
+  it('explains a 413 from the hosting platform (no JSON body) as a too-large file', async () => {
+    server.use(http.post(`${BASE}/attachments`, () => new HttpResponse('Request Entity Too Large', { status: 413 })))
+    const error = await api.upload('/attachments', new FormData()).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(413)
+    expect((error as ApiError).message).toMatch(/too large/i)
+  })
+})
+
 describe('CSRF', () => {
   it('echoes the csrf cookie on mutating requests only', async () => {
     document.cookie = 'csrf_token=tok123'

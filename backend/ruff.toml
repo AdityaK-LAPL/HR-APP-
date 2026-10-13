@@ -1,0 +1,10 @@
+# Not in pyproject.toml on purpose - see pytest.ini.
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+# B008: FastAPI's Depends(...)-as-default-argument is the documented,
+# idiomatic pattern (FastAPI special-cases it - it is not the mutable
+# default argument footgun this rule normally guards against).
+ignore = ["B008"]
