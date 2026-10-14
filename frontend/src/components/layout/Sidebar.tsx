@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom'
 import { navGroupsForRole, routeLabel } from '@/app/route-config'
 import { useAuth } from '@/features/auth/authContext'
+import { useCan } from '@/features/permissions/usePermissions'
 
 /** Desktop navigation (>= 1024px). Items come from the route config for the signed-in role. */
 export function Sidebar() {
   const { user } = useAuth()
+  const can = useCan()
   if (!user) return null
   return (
     <aside className="desktop-sidebar">
@@ -13,7 +15,7 @@ export function Sidebar() {
         <span>OpsFlow</span>
       </div>
       <nav className="sidebar-nav" aria-label="Main menu">
-        {navGroupsForRole(user.role).map(({ section, routes }) => (
+        {navGroupsForRole(user.role, can).map(({ section, routes }) => (
           <div key={section}>
             <div className="nav-section-label">{section}</div>
             {routes.map((route) => (

@@ -1,6 +1,6 @@
 # Development Status
 
-Last updated: 2026-10-12
+Last updated: 2026-10-14
 
 ## Prompt progress (18-prompt plan) - updated 2026-10-09
 
@@ -26,6 +26,20 @@ Last updated: 2026-10-12
 | 18 | UAT preparation | **Complete** - 116 scenarios in `docs/uat/` (spreadsheet + document + guide), dress-rehearsed; the UAT itself is for the company's users to run |
 
 Prerequisites for Prompt 4 and the frontend prompts, all in place: Owner account seeded (`OWN001`, `python -m scripts.seed_owner`; password change required at first login), frontend `tsc -b` / `npm run build` / `npm run lint` pass (npm scripts now call `./node_modules/.bin/*` directly, which works despite the `:` in the project path), 404-for-invisible-records documented in `api-contract.md`. Known frontend scaffolding to remove in Prompt 6: `LoginPage.tsx` still has hardcoded "demo account" buttons (`OWN001`/`MGR001`/`EMP001` with a fixed password) that must not ship.
+
+## Attendance reporting, Excel downloads and analytics (post-Prompt 18) - 2026-10-14
+
+Asked for by the user: HR or the Owner can download the monthly attendance of any employee, the daily report of what everyone is doing and an employee's leave card as `.xlsx` (laid out like `docs/Employee Name _September_2026.xlsx`, `docs/DayReport_2026-09-21.xlsx`, `docs/Employee Name_LeaveCard.xlsx` and the codes in `docs/New App.xlsx`), plus analytics in the software.
+
+Decisions (the user's): the day's Type is chosen by the employee at punch-in (At Office / Work From Home / On Duty + a remark) with leave, weekly off and holidays derived; access is an Owner-granted permission `download_company_reports` (no new role); full parity with the sheets (half-day leave, comp-off, weekly off, holiday list, WOW / HW).
+
+What was built:
+- **Backend** - migration `0020` (work mode + remark on attendance days, `leave_kind`, `company_settings`, `company_holidays`, the new permission); `company` endpoints (settings, holidays; Owner writes); `/reports/attendance-analytics`, `/reports/leave-analytics` and four `/reports/exports/*` downloads; `classify_day`; audit `report.downloaded` and `company.*`. Contract: `docs/api-contract.md` sections 18a / 18b. New tests: `tests/test_attendance_reports.py`.
+- **Frontend** - punch-in asks how you work today (and where, for On duty); leave dialog offers full day / half day / comp-off; "Worked as" column in attendance tables; new **Attendance analytics** screen (Insights; Owner and permitted managers) with tiles, a daily trend, the breakdown by type, a per-employee sortable table, leave analytics by financial year and the Excel **Downloads** panel; new **Company settings** screen (Owner: weekly off, late-after time, holidays); the permission is in the Owner's permission screen catalogue.
+
+Test results: backend 245 passed (`tests/test_attendance_reports.py` adds 37; two remote-DB connection drops in the full run passed on rerun), frontend 381, authorization sweep 276/276, UAT rehearsal 30/30, and the new real-stack check `frontend/e2e/reports-xlsx.mjs` 33/33 (workbooks opened and read back with openpyxl; rendered through LibreOffice to check the layout). Bugs the tests found and fixed on the way: a person name containing `:` or `[` broke the worksheet name, the company-settings row vanished when tests truncated `users` (readers now get the defaults if it is missing).
+
+Known and deliberate: the late-after time and weekly-off days are company-wide (one setting); a half-day leave is one date; a punch on a weekly off with an approved leave shows the leave code; location is shown as coordinates (no reverse geocoding).
 
 ## User acceptance testing preparation (Prompt 18) - 2026-10-13
 

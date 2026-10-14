@@ -68,6 +68,7 @@ TRUNCATE_TABLES = (
     "sessions",
     "manager_hierarchy_closure",
     "user_credentials",
+    "company_holidays",
     "users",
 )
 
@@ -126,6 +127,11 @@ async def client():
 async def db_reset():
     async with engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {', '.join(TRUNCATE_TABLES)} RESTART IDENTITY CASCADE"))
+        # Truncating users cascades to company_settings (updated_by); a real database always holds
+        # its single row, so put it back with the defaults.
+        await conn.execute(
+            text("INSERT INTO company_settings (id) VALUES (1) ON CONFLICT DO NOTHING")
+        )
 
     # Local-filesystem attachment storage (app/services/storage.py) isn't
     # database-tracked, so it needs its own cleanup between tests.

@@ -13,7 +13,7 @@ import { PageHeader, Section } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuth } from '@/features/auth/authContext'
 import { formatDate, formatDuration, formatTime } from '@/lib/dates'
-import { ATTENDANCE_STATUS } from '@/lib/labels'
+import { ATTENDANCE_STATUS, WORK_MODE_SHORT } from '@/lib/labels'
 import { pageNumber, useUrlParams } from '@/lib/useUrlParams'
 import { PunchCard } from './PunchCard'
 import { useAttendanceEvents, useAttendanceHistory, type AttendanceDay } from './queries'
@@ -60,6 +60,11 @@ export function MyAttendance() {
     { key: 'in', header: 'In', cell: (d) => formatTime(d.punch_in_time) || '—' },
     { key: 'out', header: 'Out', cell: (d) => formatTime(d.punch_out_time) || '—' },
     { key: 'dur', header: 'Worked', cell: (d) => formatDuration(d.total_duration_minutes) || '—' },
+    {
+      key: 'mode',
+      header: 'Worked as',
+      cell: (d) => (d.work_mode ? `${WORK_MODE_SHORT[d.work_mode]}${d.remark ? ` · ${d.remark}` : ''}` : '—'),
+    },
     { key: 'status', header: 'Status', cell: (d) => <StatusBadge table={ATTENDANCE_STATUS} value={d.status} /> },
     {
       key: 'actions',

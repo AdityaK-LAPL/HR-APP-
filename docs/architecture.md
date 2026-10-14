@@ -120,6 +120,13 @@ The application refuses to start (outside the automated test run) with a `JWT_SE
 - Passwords: at least 8 characters, not a common password, not containing the person's employee ID (Argon2id, 200-character cap).
 - The application's database role holds no `DELETE` privilege (except on the reporting-line closure its own trigger maintains): history is preserved by the database, not only by the code. Every `SECURITY DEFINER` function pins `search_path = public, pg_temp`.
 
+## 13. Attendance reporting and Excel exports (added 2026-10-14)
+
+- One pure rule, `classify_day()` in `services/attendance_report_service.py`, gives every person-day exactly one code (At Office, WFH, OD, WOW, HW, C/Off, W/Off, Holiday, FD Leave, HD Leave, Absent). The Excel sheets, the analytics API and the screens all use it, so a number can never differ between them.
+- Workbooks are built with `openpyxl` in `services/xlsx_reports.py` and returned as a download (`Content-Disposition` from `core/http.py`, `Cache-Control: no-store`). Cell text from people (names, remarks, reasons) is always written as a *string* cell, never as a formula, so a remark like `=HYPERLINK(...)` cannot execute in Excel. Locations are shown as coordinates with a map hyperlink we build ourselves.
+- Access is the Owner, or a manager holding `download_company_reports`; the request then reads under the Owner's RLS context (see `permissions.md` section 14). Every download is audited.
+- The frontend fetches the file through the normal API client (cookies, CSRF, session refresh), saves the Blob, and reports a refusal or failure instead of saving an empty file.
+
 ## 10. Non-Goals
 
 - No native Android/iOS/Windows/Linux apps.

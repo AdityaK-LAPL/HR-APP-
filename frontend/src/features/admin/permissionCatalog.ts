@@ -14,7 +14,7 @@ export type Effect = 'allow' | 'deny'
 export interface PermissionUi {
   key: string
   label: string
-  group: 'Manager visibility' | 'Assignment' | 'Projects'
+  group: 'Manager visibility' | 'Assignment' | 'Projects' | 'Company reports'
   scope: ScopeKind
   /** Wording for the thing the scope picks ("the manager whose team ..."). */
   scopeLabel: string
@@ -104,6 +104,15 @@ export const PERMISSION_UI: readonly PermissionUi[] = [
     scopeLabel: 'Project',
     effects: ['allow'],
     help: 'The manager can archive that project. Archiving always needs this permission, even for the project\'s own manager.',
+  },
+  {
+    key: 'download_company_reports',
+    label: 'Download company attendance reports',
+    group: 'Company reports',
+    scope: 'global',
+    scopeLabel: '',
+    effects: ['allow'],
+    help: 'Typically the HR person. Opens the Attendance analytics page and the Excel downloads (monthly attendance of any employee, the daily report of everyone, leave cards, the monthly summary) for the WHOLE company, read-only. It does not widen what the manager sees anywhere else.',
   },
 ]
 

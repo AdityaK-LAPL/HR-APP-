@@ -151,6 +151,13 @@ async function perform<T>(method: Method, path: string, options: RequestOptions)
   if (MUTATING.has(method) && typeof navigator !== 'undefined' && navigator.onLine === false) {
     throw networkError(OFFLINE_MESSAGE)
   }
+  const response = await sendWithRefresh(method, path, options)
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+
+/** One request, with the shared session refresh on 401; a failed answer becomes an `ApiError`. */
+async function sendWithRefresh(method: Method, path: string, options: RequestOptions): Promise<Response> {
   let response = await send(method, path, options)
 
   if (response.status === 401 && !options.skipRefresh) {
@@ -163,8 +170,33 @@ async function perform<T>(method: Method, path: string, options: RequestOptions)
   }
 
   if (!response.ok) throw await errorFromResponse(response)
-  if (response.status === 204) return undefined as T
-  return (await response.json()) as T
+  return response
+}
+
+export interface DownloadedFile {
+  blob: Blob
+  /** The server's suggested name (from Content-Disposition), if it sent one. */
+  filename: string | null
+}
+
+/** The file name the server asked for: RFC 5987 `filename*` first, then the plain `filename`. */
+export function filenameFromDisposition(header: string | null): string | null {
+  if (!header) return null
+  const star = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(header)
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim())
+    } catch {
+      // fall through to the plain form
+    }
+  }
+  const plain = /filename\s*=\s*"?([^";]+)"?/i.exec(header)
+  return plain?.[1]?.trim() || null
+}
+
+async function downloadFile(path: string, options: RequestOptions = {}): Promise<DownloadedFile> {
+  const response = await sendWithRefresh('GET', path, options)
+  return { blob: await response.blob(), filename: filenameFromDisposition(response.headers.get('Content-Disposition')) }
 }
 
 export const api = {
@@ -176,6 +208,8 @@ export const api = {
   delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, options),
   upload: <T>(path: string, form: FormData, options?: RequestOptions) =>
     request<T>('POST', path, { ...options, form }),
+  /** A file (e.g. an .xlsx report) as a Blob plus the name the server suggested. */
+  download: (path: string, options?: RequestOptions) => downloadFile(path, options),
 }
 
 export { ApiError }

@@ -42,6 +42,7 @@ Default (no override) scope rule: **a Manager may access a record belonging to u
 | `create_project` | Create new projects |
 | `delete_archive_project` | Archive/deactivate a project |
 | `assign_employees_to_project` | Add/remove project members |
+| `download_company_reports` | **Global scope, allow only (migration 0020).** The HR person: opens the company attendance analytics and the Excel reports (monthly attendance of any employee, the day report, leave cards, the monthly summary) for the whole company, read-only. No new role. |
 | `assign_employees_to_service_call` | Assign/reassign employees on a service call whose *responsible manager* is someone else. **Implemented (Phase 5) with `scope_type='user'`, `scope_id` = that responsible manager's id** — mirroring `assign_tasks_to_manager` — not a per-call scope, since context.md frames this as "Manager A can act on Manager B's calls" rather than one specific call. |
 
 Each has a **role default** in `role_permissions` (e.g. Managers default-allow `create_project`, `modify_project` for projects they own; default-deny `view_manager_reports` for a peer Manager's data — that requires an explicit grant).
@@ -214,3 +215,10 @@ The contract has always said a Manager may edit `name`/`designation` of anyone i
 - **`SECURITY DEFINER` functions** (`app_visible_user_ids`, `app_user_directory`, `app_admin_reset_password` and the `current_app_*` helpers) all pin `search_path = public, pg_temp`, so no object a caller can create in a temporary schema can stand in for a table or function they use.
 - **Sessions** gained `rotated_at` (when a refresh token was swapped for a new one) so the reuse of an already-rotated token can be told apart from one revoked by a sign-out.
 - Tests: `backend/tests/test_security_audit.py`; the live checks are `frontend/e2e/authz-sweep.mjs` (every operation, branch A against branch B) and `api-audit.mjs`.
+
+## 14. Company attendance reports (migration 0020, 2026-10-14)
+
+- **Who.** The Owner, and any manager the Owner gave the global `download_company_reports` permission (default for managers: deny; a deny grant wins over an allow). Employees and plain managers get `403` on every `/reports/attendance-analytics`, `/reports/leave-analytics` and `/reports/exports/*` route.
+- **How the permitted manager sees everyone without new RLS policies.** After the permission check (`open_company_reports`), that one request's database context switches to the `owner` role (`set_rls_context`), so the read-only report queries see the whole company. Nothing else changes: the same manager still sees only their own reporting line on every other screen, and nothing in the module writes except the `report.downloaded` audit entry.
+- **Company calendar.** `company_settings` (one row) and `company_holidays` are readable by every signed-in user and writable only by the Owner (forced RLS: insert/update for `owner` and `system`; the application role has no `DELETE`, so holidays are switched off, not removed).
+- Tests: `backend/tests/test_attendance_reports.py` (access control for employee / manager / permitted manager / deny / revoke, audit of downloads, formula-injection safety of cell contents).

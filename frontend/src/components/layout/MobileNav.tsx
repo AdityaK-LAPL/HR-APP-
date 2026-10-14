@@ -3,11 +3,13 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { mobileBarForRole, navGroupsForRole, routeLabel } from '@/app/route-config'
 import { useAuth } from '@/features/auth/authContext'
+import { useCan } from '@/features/permissions/usePermissions'
 import { Dialog } from '@/components/ui/Dialog'
 
 /** Bottom tab bar (< 1024px): up to four primary tabs plus a "More" sheet with everything else. */
 export function MobileNav() {
   const { user, logout } = useAuth()
+  const can = useCan()
   const [moreOpen, setMoreOpen] = useState(false)
   if (!user) return null
 
@@ -32,7 +34,7 @@ export function MobileNav() {
 
       <Dialog open={moreOpen} onClose={() => setMoreOpen(false)} title="Menu">
         <div className="mobile-more-sheet">
-          {navGroupsForRole(user.role).map(({ section, routes }) => (
+          {navGroupsForRole(user.role, can).map(({ section, routes }) => (
             <div key={section} style={{ marginBottom: 12 }}>
               <div className="nav-section-label">{section}</div>
               {routes.map((route) => (

@@ -46,6 +46,7 @@ async def apply_leave(
         start_date=payload.start_date,
         end_date=payload.end_date,
         reason=payload.reason,
+        leave_kind=payload.leave_kind,
         status="approved" if auto_approved else "pending",
         current_approver_id=None if auto_approved else applicant.manager_id,
     )

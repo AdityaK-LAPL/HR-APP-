@@ -108,7 +108,7 @@ An explicit `deny` scoped to U removes U **and U's branch** for that kind even f
 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
-| `POST /leaves` | Employee/Manager applies for leave. Body `{start_date, end_date, reason}`. Sets `current_approver_id` to the applicant's direct manager. | Session | Self (any role below Owner; Owner's own leave is a policy question — see Open Questions). |
+| `POST /leaves` | Employee/Manager applies for leave. Body `{start_date, end_date, reason?, leave_kind}`; `leave_kind` is `full_day` (every day from `start_date` to `end_date` counts), `half_day` (one date - `end_date` must equal `start_date` - counts 0.5) or `comp_off` (compensatory off for working a weekly off or holiday; counts 0 days of leave). Responses carry `leave_kind` and the computed `days`. Sets `current_approver_id` to the applicant's direct manager. | Session | Self (any role below Owner; Owner's own leave is a policy question — see Open Questions). |
 | `GET /leaves` | Filters: `employee_id`, `status` (no date filter; for date ranges use `GET /calendar`, which includes leave). Sorted newest first. | Session | Owner: all. Manager: own + subtree's. Employee: own only. |
 | `GET /leaves/{id}` | Detail incl. approval history. | Session | Same scoping. |
 | `POST /leaves/{id}/approve` | Body `{comments?}`. Only valid if caller is `current_approver_id` or Owner, and the request is still `pending`. Implemented as single-level: one approval finalizes `status=approved` (the schema's `leave_approvals.sequence` supports a multi-step chain, not built — see Open Questions). | Session | `current_approver_id` or Owner. |
@@ -131,7 +131,7 @@ An explicit `deny` scoped to U removes U **and U's branch** for that kind even f
 
 | Method & Path | Description | Auth | Permission |
 |---|---|---|---|
-| `POST /attendance/punch-in` | Body `{latitude?, longitude?}` (both optional; requested only at this moment, not polled). Creates an `attendance_events` row and upserts today's `attendance_days` row. `409` if already punched in today, or if today's in/out cycle is already complete (each day is one punch-in/punch-out pair — see Attendance note below). `work_date` is the calendar date of the event in the **company timezone** (Asia/Kolkata / IST; the day rolls over at 00:00 IST, not 00:00 UTC). Timestamps in responses stay UTC instants — display them in the company timezone (`GET /config`). | Session | Self only — `user_id` is always the authenticated caller, never a request field. |
+| `POST /attendance/punch-in` | Body `{latitude?, longitude?, work_mode?, remark?}` (location optional; requested only at this moment, not polled). `work_mode` is how the person works today - `at_office` (default when omitted, so older clients keep working), `work_from_home` or `on_duty` (customer site / travelling) - and `remark` (max 200 chars) says where; both are stored on the day and shown as the day's Type in the Excel reports. Creates an `attendance_events` row and upserts today's `attendance_days` row. `409` if already punched in today, or if today's in/out cycle is already complete (each day is one punch-in/punch-out pair — see Attendance note below). `work_date` is the calendar date of the event in the **company timezone** (Asia/Kolkata / IST; the day rolls over at 00:00 IST, not 00:00 UTC). Timestamps in responses stay UTC instants — display them in the company timezone (`GET /config`). | Session | Self only — `user_id` is always the authenticated caller, never a request field. |
 | `POST /attendance/punch-out` | Body `{latitude?, longitude?}`. `409` if not currently punched in, or already punched out today. Computes `total_duration_minutes` from today's punch-in time. | Session | Self only. |
 | `GET /attendance` | Filters: `user_id`, `manager_id` (direct reports of that manager only, not their whole subtree), `start_date`, `end_date`. Returns paginated `attendance_days` rows. No `project_id` filter (attendance isn't linked to projects in this schema). | Session | Owner: all. Manager: own + subtree's. Employee: own only. |
 | `GET /attendance/{user_id}/{work_date}/events` | Raw punch events for one user-day (audit/detail view). `work_date` is `YYYY-MM-DD`. | Session | Owner: any. Self: own. Manager: subtree only. |
@@ -262,6 +262,33 @@ Every report is scoped by hierarchy exactly like the underlying list endpoints (
 | `GET /reports/workload` | Per-user `{open_task_count, active_service_assignment_count}`. | Session | Owner: company-wide. Manager: subtree. Employee: 403. |
 | `GET /reports/service-activity` | Service call counts grouped by `status`, plus `average_resolution_minutes`, filterable by `manager_id`. | Session | Owner: company-wide. Manager: responsible-for/subtree. Employee: 403. |
 
+### 18a. Company attendance reports, analytics and Excel downloads
+
+For HR and the Owner: the monthly attendance of any employee, the day report of everyone, an employee's leave card and a month summary of the whole company, as `.xlsx` files laid out like the company's own sheets, plus the analytics behind the Attendance analytics screen. **Access:** the Owner, or a manager holding the global `download_company_reports` permission (an explicit deny wins; see `docs/permissions.md`). Everyone else gets `403`. These routes are company-wide and read-only; the permission does not widen what the manager sees anywhere else. Every response is `Cache-Control: no-store`, and every download writes a `report.downloaded` audit entry. `month` is `YYYY-MM` (`422` otherwise); an unknown employee is `404`.
+
+Each person-day gets exactly one code: `At Office`, `WFH`, `OD` (from the work mode chosen at punch-in), `WOW` (punched in on a weekly off), `HW` (punched in on a holiday), `C/Off`, `W/Off`, `Holiday`, `FD Leave`, `HD Leave`, `Absent` (a past working day with nothing recorded) or blank (today, the future, or before the person joined). Approved leave wins over a punch; a worked day counts 1, a half-day leave 0.5. A punch-in after `company_settings.late_after` (company time) is late. Leave cards and the leave analytics use the Indian financial year, April - March.
+
+| Method & Path | Description | Auth | Permission |
+|---|---|---|---|
+| `GET /reports/attendance-analytics?month=` | Company figures for the month: tiles (`employees`, `working_days`, `average_attendance_percent`, `average_minutes_per_day`, `late_arrivals`, `leave_days`), `by_type` counts per code, a `daily` series and one `people` row per employee. | Session | Owner or `download_company_reports`. |
+| `GET /reports/leave-analytics?financial_year=` | Leave for the financial year starting in that year (default: the current one): totals taken / upcoming, `by_month`, `people`. | Session | Same. |
+| `GET /reports/exports/attendance-monthly?employee_id=&month=` | `Attendance_<Name>_<Month>_<Year>.xlsx` - one employee's month, day by day, with a legend and totals. | Session | Same. |
+| `GET /reports/exports/attendance-daily?date=` | `DayReport_<date>.xlsx` - what everyone did that day (type, in/out times and locations, hours, remark). | Session | Same. |
+| `GET /reports/exports/leave-card?employee_id=&start_date=&end_date=` | `LeaveCard_<Name>.xlsx` - every leave day with its kind and running total; the dates default to the current financial year. | Session | Same. |
+| `GET /reports/exports/attendance-summary?month=` | `AttendanceSummary_<Month>_<Year>.xlsx` - a row per employee, plus a second "Day by day" register sheet. | Session | Same. |
+
+### 18b. Company settings and holidays
+
+The calendar the reports are built on: company name (printed on the sheets), weekly-off weekdays (`0` = Monday ... `6` = Sunday; default `[5, 6]`), the `late_after` time (default `09:30`) and a holiday list. Anyone signed in may read them; only the Owner changes them (row-level security says the same), and every change is audited (`company.settings_changed`, `company.holiday_added`, `company.holiday_removed`). Holidays are never deleted: removing one switches it off, and adding the same date again switches it back on.
+
+| Method & Path | Description | Auth | Permission |
+|---|---|---|---|
+| `GET /company/settings` | `{company_name, weekly_off_days, late_after}`. | Session | Any signed-in user. |
+| `PATCH /company/settings` | Body: any of the three fields. | Session | Owner. |
+| `GET /company/holidays?year=` | Active holidays, optionally for one year, by date. | Session | Any signed-in user. |
+| `POST /company/holidays` | Body `{holiday_date, name}`. `409` if already listed. | Session | Owner. |
+| `DELETE /company/holidays/{id}` | Switches the holiday off (`204`). | Session | Owner. |
+
 ---
 
 ## 19. Search
@@ -281,9 +308,11 @@ Every value below is also published as an `enum` on the corresponding fields in 
 | `tasks.priority` | `low`, `medium`, `high`, `urgent` |
 | `projects.status` | `not_started`, `planning`, `in_progress`, `on_hold`, `completed`, `cancelled` |
 | `leave_requests.status` | `pending`, `approved`, `rejected`, `cancelled` |
+| `leave_requests.leave_kind` | `full_day`, `half_day`, `comp_off` |
 | `leave_approvals.decision` | `approved`, `rejected` |
 | `attendance_events.event_type` | `punch_in`, `punch_out` |
 | `attendance_days.status` | `present`, `partial`, `absent`, `on_leave` |
+| `attendance_days.work_mode` | `at_office`, `work_from_home`, `on_duty` |
 | `machines.status` | `active`, `inactive`, `decommissioned` |
 | `service_calls.contact_method` | `phone`, `email`, `in_person`, `other` |
 | `service_calls.priority` | `low`, `medium`, `high`, `urgent` |
@@ -416,7 +445,7 @@ Generated from the running app by `python -m scripts.contract_tools`; do not edi
 | `GET /projects/{project_id}/members` | 200 | Session | - | - | ProjectMemberResponse[] |
 | `POST /projects/{project_id}/members` | 201 | Session | - | user_id*, role_in_project | ProjectMemberResponse |
 | `DELETE /projects/{project_id}/members/{user_id}` | 204 | Session | - | - | (empty) |
-| `POST /leaves` | 201 | Session | - | start_date*, end_date*, reason | LeaveResponse |
+| `POST /leaves` | 201 | Session | - | start_date*, end_date*, reason, leave_kind | LeaveResponse |
 | `GET /leaves` | 200 | Session | employee_id, status, page, page_size | - | LeaveListResponse |
 | `GET /leaves/{leave_id}` | 200 | Session | - | - | LeaveResponse |
 | `POST /leaves/{leave_id}/approve` | 200 | Session | - | comments | LeaveResponse |
@@ -425,8 +454,8 @@ Generated from the running app by `python -m scripts.contract_tools`; do not edi
 | `POST /eod` | 201 | Session | - | report_date*, project_id, task_id, work_completed, work_remaining, issues, notes | EodResponse |
 | `GET /eod` | 200 | Session | user_id, project_id, report_date, page, page_size | - | EodListResponse |
 | `GET /eod/{eod_id}` | 200 | Session | - | - | EodResponse |
-| `POST /attendance/punch-in` | 200 | Session | - | latitude, longitude | AttendanceDayResponse |
-| `POST /attendance/punch-out` | 200 | Session | - | latitude, longitude | AttendanceDayResponse |
+| `POST /attendance/punch-in` | 200 | Session | - | latitude, longitude, work_mode, remark | AttendanceDayResponse |
+| `POST /attendance/punch-out` | 200 | Session | - | latitude, longitude, work_mode, remark | AttendanceDayResponse |
 | `GET /attendance` | 200 | Session | user_id, manager_id, start_date, end_date, page, page_size | - | AttendanceListResponse |
 | `GET /attendance/{user_id}/{work_date}/events` | 200 | Session | - | - | AttendanceEventResponse[] |
 | `GET /calendar` | 200 | Session | start_date*, end_date*, user_id, project_id, team | - | CalendarResponse |
@@ -469,5 +498,16 @@ Generated from the running app by `python -m scripts.contract_tools`; do not edi
 | `GET /reports/leave` | 200 | Manager or Owner | - | - | LeaveReportResponse |
 | `GET /reports/workload` | 200 | Manager or Owner | - | - | WorkloadRow[] |
 | `GET /reports/service-activity` | 200 | Manager or Owner | manager_id | - | ServiceActivityReportResponse |
+| `GET /reports/attendance-analytics` | 200 | Owner, or a manager holding `download_company_reports` | month* | - | AttendanceAnalyticsResponse |
+| `GET /reports/leave-analytics` | 200 | Owner, or a manager holding `download_company_reports` | financial_year | - | LeaveAnalyticsResponse |
+| `GET /reports/exports/attendance-monthly` | 200 | Owner, or a manager holding `download_company_reports` | employee_id*, month* | - | - |
+| `GET /reports/exports/attendance-daily` | 200 | Owner, or a manager holding `download_company_reports` | date* | - | - |
+| `GET /reports/exports/leave-card` | 200 | Owner, or a manager holding `download_company_reports` | employee_id*, start_date, end_date | - | - |
+| `GET /reports/exports/attendance-summary` | 200 | Owner, or a manager holding `download_company_reports` | month* | - | - |
+| `GET /company/settings` | 200 | Session | - | - | CompanySettingsResponse |
+| `PATCH /company/settings` | 200 | Owner | - | company_name, weekly_off_days, late_after | CompanySettingsResponse |
+| `GET /company/holidays` | 200 | Session | year | - | HolidayResponse[] |
+| `POST /company/holidays` | 201 | Owner | - | holiday_date*, name* | HolidayResponse |
+| `DELETE /company/holidays/{holiday_id}` | 204 | Owner | - | - | (empty) |
 
 <!-- END GENERATED OPERATION REFERENCE -->

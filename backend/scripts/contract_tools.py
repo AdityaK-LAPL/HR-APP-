@@ -33,6 +33,8 @@ def _auth(route: APIRoute) -> str:
                     roles += [str(r) for r in cell.cell_contents]
             return "Owner" if roles == ["owner"] else "Manager or Owner"
         names.append(name)
+    if "company_reports_user" in names:
+        return "Owner, or a manager holding `download_company_reports`"
     if "get_current_user" in names:
         return "Session"
     if route.path.endswith("/auth/refresh"):

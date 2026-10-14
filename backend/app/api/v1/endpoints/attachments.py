@@ -1,8 +1,6 @@
 """Attachment endpoints - see docs/api-contract.md section 15."""
 
-import re
 import uuid
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -10,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.config import get_settings
+from app.core.http import content_disposition
 from app.db.session import get_db
 from app.schemas.attachment import (
     AttachmentListResponse,
@@ -20,18 +19,6 @@ from app.schemas.principal import CurrentUser
 from app.services import attachment_service
 
 router = APIRouter(prefix="/attachments", tags=["attachments"])
-
-
-def _content_disposition(filename: str) -> str:
-    """`attachment` with an ASCII fallback plus the real name in RFC 5987 form.
-
-    original_filename is client-supplied text (older rows may even hold paths or non-Latin
-    letters); a header value must be Latin-1 and free of quotes and control characters, so the
-    fallback is ASCII-only and the exact name travels percent-encoded in `filename*`.
-    """
-    last_segment = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
-    fallback = re.sub(r"[^A-Za-z0-9._ -]", "_", last_segment)[:100] or "download"
-    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 @router.get("", response_model=AttachmentListResponse)
@@ -101,7 +88,7 @@ async def download_attachment(
     return StreamingResponse(
         iter([content]),
         media_type=attachment.mime_type or "application/octet-stream",
-        headers={"Content-Disposition": _content_disposition(attachment.original_filename)},
+        headers={"Content-Disposition": content_disposition(attachment.original_filename)},
     )
 
 

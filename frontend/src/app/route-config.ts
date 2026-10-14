@@ -8,6 +8,7 @@
 
 import {
   BarChart3,
+  CalendarCheck,
   Briefcase,
   Building2,
   CalendarDays,
@@ -17,6 +18,7 @@ import {
   FileText,
   History,
   LayoutDashboard,
+  Settings2,
   ShieldCheck,
   Users,
   Wrench,
@@ -38,6 +40,11 @@ export interface RouteSpec {
   labels?: Partial<Record<Role, string>>
   /** Roles for which this is one of the (max 4) always-visible phone tabs. */
   mobileBar?: readonly Role[]
+  /**
+   * A permission key a manager needs for the menu to show this entry (a display hint on top of
+   * `roles`; the Owner always sees it). Without it the route still opens a friendly "not available".
+   */
+  needsPermission?: string
   /** Prompt number that builds the real screen. */
   phase: number
   description: string
@@ -159,6 +166,18 @@ export const ROUTES: readonly RouteSpec[] = [
     description: 'Attendance, task, leave and service reports.',
   },
   {
+    path: 'attendance-analytics',
+    title: 'Attendance analytics',
+    icon: CalendarCheck,
+    section: 'Insights',
+    // The Owner, and a manager the Owner allowed to download company reports (the menu hides it
+    // from the others through `needsPermission`; the API is the authority).
+    roles: ['owner', 'manager'],
+    needsPermission: 'download_company_reports',
+    phase: 19,
+    description: 'Company attendance and leave analytics, with Excel downloads.',
+  },
+  {
     path: 'users',
     title: 'People',
     icon: Users,
@@ -176,6 +195,15 @@ export const ROUTES: readonly RouteSpec[] = [
     roles: ['owner'],
     phase: 9,
     description: 'What each manager can see and do.',
+  },
+  {
+    path: 'company-settings',
+    title: 'Company settings',
+    icon: Settings2,
+    section: 'Administration',
+    roles: ['owner'],
+    phase: 19,
+    description: 'Weekly off, holidays and office hours.',
   },
   {
     path: 'audit-logs',
@@ -203,8 +231,17 @@ export function routesForRole(role: Role): RouteSpec[] {
   return ROUTES.filter((route) => route.roles.includes(role))
 }
 
-export function navGroupsForRole(role: Role): { section: NavSection; routes: RouteSpec[] }[] {
-  const routes = routesForRole(role)
+/**
+ * The menu for a role. `can` (the caller's own permission hints) hides entries that need a
+ * permission the person does not hold; without it every entry for the role is listed.
+ */
+export function navGroupsForRole(
+  role: Role,
+  can?: (permission: string) => boolean,
+): { section: NavSection; routes: RouteSpec[] }[] {
+  const routes = routesForRole(role).filter(
+    (route) => !route.needsPermission || role === 'owner' || !can || can(route.needsPermission),
+  )
   return NAV_SECTIONS.map((section) => ({
     section,
     routes: routes.filter((route) => route.section === section),

@@ -17,6 +17,8 @@ CONTRACT_FIELDS = {
     "users.role": ("UserResponse", "role"),
     "attendance_events.event_type": ("AttendanceEventResponse", "event_type"),
     "attendance_days.status": ("AttendanceDayResponse", "status"),
+    "attendance_days.work_mode": ("AttendanceDayResponse", "work_mode"),
+    "leave_requests.leave_kind": ("LeaveResponse", "leave_kind"),
     "machines.status": ("MachineResponse", "status"),
     "service_calls.contact_method": ("ServiceCallResponse", "contact_method"),
     "service_calls.priority": ("ServiceCallResponse", "priority"),
@@ -54,9 +56,9 @@ def test_openapi_enums_match_the_contract_reference():
         assert (
             contract_field in contract
         ), f"{contract_field} missing from api-contract.md section 20"
-        assert (
-            schemas[schema_name]["properties"][prop]["enum"] == contract[contract_field]
-        ), contract_field
+        node = schemas[schema_name]["properties"][prop]
+        values = node.get("enum") or next(b["enum"] for b in node["anyOf"] if "enum" in b)
+        assert values == contract[contract_field], contract_field
 
 
 def test_enum_annotation_does_not_change_validation():

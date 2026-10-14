@@ -34,6 +34,10 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   'machine.reactivated': 'Machine reactivated',
   'leave.approved': 'Leave approved',
   'leave.rejected': 'Leave rejected',
+  'report.downloaded': 'Report downloaded',
+  'company.settings_changed': 'Company settings changed',
+  'company.holiday_added': 'Holiday added',
+  'company.holiday_removed': 'Holiday removed',
 }
 
 export const AUDIT_ENTITY_TYPES: Record<string, string> = {
@@ -47,6 +51,9 @@ export const AUDIT_ENTITY_TYPES: Record<string, string> = {
   customer: 'Customer',
   machine: 'Machine',
   eod_report: 'EOD report',
+  report: 'Report',
+  company_settings: 'Company settings',
+  company_holiday: 'Holiday',
 }
 
 export function actionLabel(action: string): string {

@@ -71,6 +71,8 @@ async def punch_in(db: AsyncSession, *, actor: CurrentUser, payload: PunchReques
     day.punch_in_time = now
     day.punch_in_location = location
     day.status = "present"
+    day.work_mode = payload.work_mode or "at_office"
+    day.remark = payload.remark
     await db.flush()
     return day
 

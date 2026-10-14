@@ -45,8 +45,35 @@ describe('My leave', () => {
     await user.type(within(dialog).getByLabelText(/reason/i), '  Family function  ')
     await user.click(within(dialog).getByRole('button', { name: 'Send request' }))
     await waitFor(() => expect(seen.seen).toHaveLength(1))
-    expect(seen.seen[0]?.body).toEqual({ start_date: '2026-03-10', end_date: '2026-03-12', reason: 'Family function' })
+    expect(seen.seen[0]?.body).toEqual({ start_date: '2026-03-10', end_date: '2026-03-12', reason: 'Family function', leave_kind: 'full_day' })
     expect(await screen.findByText('Leave request sent for approval.')).toBeInTheDocument()
+  })
+
+  it('applies for half a day on one date, and for a compensatory off that uses no leave', async () => {
+    mockSession(employee)
+    const seen = spy()
+    server.use(http.post(`${BASE}/leaves`, async ({ request }) => { await seen.record(request); return HttpResponse.json(leave(), { status: 201 }) }))
+    renderApp('/leaves')
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Apply for leave' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Apply for leave' })
+
+    await user.selectOptions(within(dialog).getByLabelText('Type of leave'), 'half_day')
+    expect(within(dialog).queryByLabelText(/^to/i)).not.toBeInTheDocument() // one date only
+    expect(await within(dialog).findByText('0.5 days of leave')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Send request' }))
+    await waitFor(() => expect(seen.seen).toHaveLength(1))
+    expect(seen.seen[0]?.body).toEqual({ start_date: '2026-03-05', end_date: '2026-03-05', reason: null, leave_kind: 'half_day' })
+  })
+
+  it('says a compensatory off counts as no leave', async () => {
+    mockSession(employee)
+    renderApp('/leaves')
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Apply for leave' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Apply for leave' })
+    await user.selectOptions(within(dialog).getByLabelText('Type of leave'), 'comp_off')
+    expect(await within(dialog).findByText(/counts as 0 days of leave/i)).toBeInTheDocument()
   })
 
   it('rejects an end date before the start date without calling the server', async () => {

@@ -11,6 +11,7 @@ from app.models import (  # noqa: F401
     attachment,
     attendance,
     audit,
+    company,
     customer,
     eod,
     identity,

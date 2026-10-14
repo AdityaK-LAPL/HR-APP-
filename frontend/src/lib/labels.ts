@@ -19,6 +19,8 @@ type LeaveStatus = Schema<'LeaveResponse'>['status']
 type ProjectStatus = Schema<'ProjectResponse'>['status']
 type ServiceStatus = Schema<'ServiceCallResponse'>['status']
 type AttendanceStatus = Schema<'AttendanceDayResponse'>['status']
+export type WorkMode = NonNullable<Schema<'AttendanceDayResponse'>['work_mode']>
+export type LeaveKind = Schema<'LeaveResponse'>['leave_kind']
 type MachineStatus = Schema<'MachineResponse'>['status']
 type VisitType = Schema<'ServiceVisitResponse'>['visit_type']
 type ServiceType = Schema<'ServiceCallResponse'>['service_type']
@@ -81,6 +83,20 @@ export const ATTENDANCE_STATUS: Table<AttendanceStatus> = {
   partial: { label: 'Partial', tone: 'warning' },
   absent: { label: 'Absent', tone: 'danger' },
   on_leave: { label: 'On leave', tone: 'neutral' },
+}
+
+/** Where the person said they were working when they punched in. */
+export const WORK_MODE: Record<WorkMode, string> = {
+  at_office: 'At office',
+  work_from_home: 'Work from home',
+  on_duty: 'On duty (customer / site)',
+}
+export const WORK_MODE_SHORT: Record<WorkMode, string> = { at_office: 'Office', work_from_home: 'Home', on_duty: 'On duty' }
+
+export const LEAVE_KIND: Record<LeaveKind, string> = {
+  full_day: 'Full day',
+  half_day: 'Half day',
+  comp_off: 'Compensatory off',
 }
 
 export const MACHINE_STATUS: Table<MachineStatus> = {

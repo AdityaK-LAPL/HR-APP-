@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     audit_logs,
     auth,
     calendar,
+    company,
     customers,
     eod,
     health,
@@ -49,3 +50,4 @@ api_router.include_router(attachments.router)
 api_router.include_router(audit_logs.router)
 api_router.include_router(notifications.router)
 api_router.include_router(reports.router)
+api_router.include_router(company.router)

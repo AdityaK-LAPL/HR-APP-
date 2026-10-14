@@ -19,7 +19,7 @@ import { useServiceCalls } from '@/features/service/queries'
 import { TaskFormDialog } from '@/features/tasks/TaskFormDialog'
 import { useTasks } from '@/features/tasks/queries'
 import { addDays } from '@/lib/calendar'
-import { formatDate, formatDuration, formatTime, inclusiveDays } from '@/lib/dates'
+import { formatDate, formatDuration, formatTime, leaveDays } from '@/lib/dates'
 import { ATTENDANCE_STATUS, LEAVE_STATUS, SERVICE_STATUS, TASK_STATUS } from '@/lib/labels'
 import { EditPersonDialog } from './EditPersonDialog'
 import { OwnerPersonActions } from '@/features/admin/PersonAdmin'
@@ -201,7 +201,7 @@ export function PersonPage() {
                 <>
                   <span>
                     {leave.start_date === leave.end_date ? formatDate(leave.start_date) : `${formatDate(leave.start_date)} – ${formatDate(leave.end_date)}`}
-                    {` · ${inclusiveDays(leave.start_date, leave.end_date)}d`}
+                    {` · ${leaveDays(leave.leave_kind, leave.start_date, leave.end_date)}d`}
                   </span>
                   <StatusBadge table={LEAVE_STATUS} value={leave.status} />
                 </>

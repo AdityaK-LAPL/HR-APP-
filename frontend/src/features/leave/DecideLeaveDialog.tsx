@@ -5,7 +5,8 @@ import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Textarea } from '@/components/ui/fields'
-import { formatDate, inclusiveDays } from '@/lib/dates'
+import { formatDate, leaveDays } from '@/lib/dates'
+import { LEAVE_KIND } from '@/lib/labels'
 import { useDecideLeave, type Leave } from './queries'
 
 export type Decision = { leave: Leave; kind: 'approve' | 'reject'; who: string }
@@ -30,7 +31,7 @@ function DecisionForm({ decision, onClose }: { decision: Decision; onClose: () =
   const [error, setError] = useState<string | null>(null)
   const { leave, kind, who } = decision
   const rejecting = kind === 'reject'
-  const days = inclusiveDays(leave.start_date, leave.end_date)
+  const days = leaveDays(leave.leave_kind, leave.start_date, leave.end_date)
   const range =
     leave.start_date === leave.end_date ? formatDate(leave.start_date) : `${formatDate(leave.start_date)} – ${formatDate(leave.end_date)}`
 
@@ -38,7 +39,7 @@ function DecisionForm({ decision, onClose }: { decision: Decision; onClose: () =
     <div className="stack">
       {error && <Alert tone="error">{error}</Alert>}
       <p>
-        <strong>{who}</strong> · {range} · {days} {days === 1 ? 'day' : 'days'}
+        <strong>{who}</strong> · {range} · {leave.leave_kind === 'full_day' ? '' : `${LEAVE_KIND[leave.leave_kind]} · `}{days} {days === 1 ? 'day' : 'days'}
         {leave.reason ? ` · “${leave.reason}”` : ''}
       </p>
       <Textarea

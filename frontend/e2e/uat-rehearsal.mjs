@@ -137,7 +137,7 @@ const waitText = (p, re, ms = 20000) => eventually(async () => re.test(await tex
   const p = await watch(OWNER.code)
   await m.check(A, 'UAT-OWN-01', 'owner menu has exactly the promised entries', async () => {
     const t = (await p.getByRole('navigation', { name: 'Main menu' }).getByRole('link').allInnerTexts()).join('|')
-    const want = ['Company overview', 'Company tasks', 'Attendance', 'Leave requests', 'EOD reports', 'Projects', 'Team calendar', 'Service calls', 'Customers', 'Machines', 'Reports', 'Users & hierarchy', 'Permissions', 'Audit trail']
+    const want = ['Company overview', 'Company tasks', 'Attendance', 'Leave requests', 'EOD reports', 'Projects', 'Team calendar', 'Service calls', 'Customers', 'Machines', 'Reports', 'Attendance analytics', 'Users & hierarchy', 'Permissions', 'Company settings', 'Audit trail']
     return want.every((x) => t.includes(x)) ? true : `FAIL ${t}` })
   await m.check(A, 'UAT-OWN-04', 'reporting structure tab shows the tree', async () => {
     await go(p, '/users'); await p.getByRole('button', { name: 'Reporting structure' }).click()

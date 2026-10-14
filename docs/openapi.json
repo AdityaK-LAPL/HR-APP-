@@ -8233,6 +8233,936 @@
           }
         }
       }
+    },
+    "/api/v1/reports/attendance-analytics": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Attendance Analytics",
+        "operationId": "attendance_analytics_api_v1_reports_attendance_analytics_get",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "description": "YYYY-MM",
+              "title": "Month"
+            },
+            "description": "YYYY-MM"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttendanceAnalyticsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/leave-analytics": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Leave Analytics",
+        "operationId": "leave_analytics_api_v1_reports_leave_analytics_get",
+        "parameters": [
+          {
+            "name": "financial_year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2100,
+                  "minimum": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The year the financial year (April-March) starts in",
+              "title": "Financial Year"
+            },
+            "description": "The year the financial year (April-March) starts in"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaveAnalyticsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/exports/attendance-monthly": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Export Attendance Monthly",
+        "operationId": "export_attendance_monthly_api_v1_reports_exports_attendance_monthly_get",
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Employee Id"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "description": "YYYY-MM",
+              "title": "Month"
+            },
+            "description": "YYYY-MM"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/exports/attendance-daily": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Export Attendance Daily",
+        "operationId": "export_attendance_daily_api_v1_reports_exports_attendance_daily_get",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/exports/leave-card": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Export Leave Card",
+        "operationId": "export_leave_card_api_v1_reports_exports_leave_card_get",
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Employee Id"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start Date"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/exports/attendance-summary": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Export Attendance Summary",
+        "operationId": "export_attendance_summary_api_v1_reports_exports_attendance_summary_get",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "description": "YYYY-MM",
+              "title": "Month"
+            },
+            "description": "YYYY-MM"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/company/settings": {
+      "get": {
+        "tags": [
+          "company"
+        ],
+        "summary": "Get Company Settings",
+        "operationId": "get_company_settings_api_v1_company_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySettingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "company"
+        ],
+        "summary": "Update Company Settings",
+        "operationId": "update_company_settings_api_v1_company_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanySettingsUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySettingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/company/holidays": {
+      "get": {
+        "tags": [
+          "company"
+        ],
+        "summary": "List Holidays",
+        "operationId": "list_holidays_api_v1_company_holidays_get",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2100,
+                  "minimum": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Year"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HolidayResponse"
+                  },
+                  "title": "Response List Holidays Api V1 Company Holidays Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "company"
+        ],
+        "summary": "Add Holiday",
+        "operationId": "add_holiday_api_v1_company_holidays_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HolidayCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/company/holidays/{holiday_id}": {
+      "delete": {
+        "tags": [
+          "company"
+        ],
+        "summary": "Remove Holiday",
+        "operationId": "remove_holiday_api_v1_company_holidays__holiday_id__delete",
+        "parameters": [
+          {
+            "name": "holiday_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Holiday Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Not authenticated / session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Visible but not permitted, or bad CSRF",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or outside the caller's visibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (see error.details)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8435,6 +9365,99 @@
         ],
         "title": "AttachmentWithUrlResponse"
       },
+      "AttendanceAnalyticsResponse": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "first_day": {
+            "type": "string",
+            "format": "date",
+            "title": "First Day"
+          },
+          "last_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Day"
+          },
+          "employees": {
+            "type": "integer",
+            "title": "Employees"
+          },
+          "working_days": {
+            "type": "integer",
+            "title": "Working Days"
+          },
+          "average_attendance_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Attendance Percent"
+          },
+          "average_minutes_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Minutes Per Day"
+          },
+          "late_arrivals": {
+            "type": "integer",
+            "title": "Late Arrivals"
+          },
+          "leave_days": {
+            "type": "number",
+            "title": "Leave Days"
+          },
+          "by_type": {
+            "items": {
+              "$ref": "#/components/schemas/TypeCount"
+            },
+            "type": "array",
+            "title": "By Type"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DailyAttendancePoint"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/PersonAttendanceRow"
+            },
+            "type": "array",
+            "title": "People"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "first_day",
+          "last_day",
+          "employees",
+          "working_days",
+          "average_attendance_percent",
+          "average_minutes_per_day",
+          "late_arrivals",
+          "leave_days",
+          "by_type",
+          "daily",
+          "people"
+        ],
+        "title": "AttendanceAnalyticsResponse"
+      },
       "AttendanceDayResponse": {
         "properties": {
           "id": {
@@ -8518,6 +9541,33 @@
               "absent",
               "on_leave"
             ]
+          },
+          "work_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "at_office",
+                  "work_from_home",
+                  "on_duty"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Mode"
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark"
           }
         },
         "type": "object",
@@ -8530,7 +9580,9 @@
           "punch_out_time",
           "punch_out_location",
           "total_duration_minutes",
-          "status"
+          "status",
+          "work_mode",
+          "remark"
         ],
         "title": "AttendanceDayResponse"
       },
@@ -8895,6 +9947,78 @@
           "new_password"
         ],
         "title": "ChangePasswordRequest"
+      },
+      "CompanySettingsResponse": {
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "title": "Company Name"
+          },
+          "weekly_off_days": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Weekly Off Days"
+          },
+          "late_after": {
+            "type": "string",
+            "format": "time",
+            "title": "Late After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "company_name",
+          "weekly_off_days",
+          "late_after"
+        ],
+        "title": "CompanySettingsResponse"
+      },
+      "CompanySettingsUpdateRequest": {
+        "properties": {
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "weekly_off_days": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekly Off Days"
+          },
+          "late_after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Late After"
+          }
+        },
+        "type": "object",
+        "title": "CompanySettingsUpdateRequest"
       },
       "CustomerContactCreateRequest": {
         "properties": {
@@ -9270,6 +10394,65 @@
         "type": "object",
         "title": "CustomerUpdateRequest"
       },
+      "DailyAttendancePoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "weekly_off": {
+            "type": "boolean",
+            "title": "Weekly Off"
+          },
+          "holiday": {
+            "type": "boolean",
+            "title": "Holiday"
+          },
+          "at_office": {
+            "type": "integer",
+            "title": "At Office"
+          },
+          "work_from_home": {
+            "type": "integer",
+            "title": "Work From Home"
+          },
+          "on_duty": {
+            "type": "integer",
+            "title": "On Duty"
+          },
+          "weekend_or_holiday_working": {
+            "type": "integer",
+            "title": "Weekend Or Holiday Working"
+          },
+          "on_leave": {
+            "type": "integer",
+            "title": "On Leave"
+          },
+          "comp_off": {
+            "type": "integer",
+            "title": "Comp Off"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "weekly_off",
+          "holiday",
+          "at_office",
+          "work_from_home",
+          "on_duty",
+          "weekend_or_holiday_working",
+          "on_leave",
+          "comp_off",
+          "absent"
+        ],
+        "title": "DailyAttendancePoint"
+      },
       "EodCreateRequest": {
         "properties": {
           "report_date": {
@@ -9607,6 +10790,113 @@
         ],
         "title": "HierarchyNode"
       },
+      "HolidayCreateRequest": {
+        "properties": {
+          "holiday_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Holiday Date"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "holiday_date",
+          "name"
+        ],
+        "title": "HolidayCreateRequest"
+      },
+      "HolidayResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "holiday_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Holiday Date"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "holiday_date",
+          "name",
+          "is_active"
+        ],
+        "title": "HolidayResponse"
+      },
+      "LeaveAnalyticsResponse": {
+        "properties": {
+          "financial_year": {
+            "type": "integer",
+            "title": "Financial Year"
+          },
+          "first_day": {
+            "type": "string",
+            "format": "date",
+            "title": "First Day"
+          },
+          "last_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Day"
+          },
+          "total_leave_days": {
+            "type": "number",
+            "title": "Total Leave Days"
+          },
+          "taken_days": {
+            "type": "number",
+            "title": "Taken Days"
+          },
+          "upcoming_days": {
+            "type": "number",
+            "title": "Upcoming Days"
+          },
+          "by_month": {
+            "items": {
+              "$ref": "#/components/schemas/LeaveMonthPoint"
+            },
+            "type": "array",
+            "title": "By Month"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/PersonLeaveRow"
+            },
+            "type": "array",
+            "title": "People"
+          }
+        },
+        "type": "object",
+        "required": [
+          "financial_year",
+          "first_day",
+          "last_day",
+          "total_leave_days",
+          "taken_days",
+          "upcoming_days",
+          "by_month",
+          "people"
+        ],
+        "title": "LeaveAnalyticsResponse"
+      },
       "LeaveCreateRequest": {
         "properties": {
           "start_date": {
@@ -9629,6 +10919,16 @@
               }
             ],
             "title": "Reason"
+          },
+          "leave_kind": {
+            "type": "string",
+            "enum": [
+              "full_day",
+              "half_day",
+              "comp_off"
+            ],
+            "title": "Leave Kind",
+            "default": "full_day"
           }
         },
         "type": "object",
@@ -9685,6 +10985,39 @@
           "page_size"
         ],
         "title": "LeaveListResponse"
+      },
+      "LeaveMonthPoint": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "leave_days": {
+            "type": "number",
+            "title": "Leave Days"
+          },
+          "full_days": {
+            "type": "integer",
+            "title": "Full Days"
+          },
+          "half_days": {
+            "type": "integer",
+            "title": "Half Days"
+          },
+          "comp_off_days": {
+            "type": "integer",
+            "title": "Comp Off Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "leave_days",
+          "full_days",
+          "half_days",
+          "comp_off_days"
+        ],
+        "title": "LeaveMonthPoint"
       },
       "LeaveRejectRequest": {
         "properties": {
@@ -9764,6 +11097,15 @@
               "cancelled"
             ]
           },
+          "leave_kind": {
+            "type": "string",
+            "enum": [
+              "full_day",
+              "half_day",
+              "comp_off"
+            ],
+            "title": "Leave Kind"
+          },
           "current_approver_id": {
             "anyOf": [
               {
@@ -9785,6 +11127,11 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "days": {
+            "type": "number",
+            "title": "Days",
+            "readOnly": true
           }
         },
         "type": "object",
@@ -9795,9 +11142,11 @@
           "end_date",
           "reason",
           "status",
+          "leave_kind",
           "current_approver_id",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "days"
         ],
         "title": "LeaveResponse"
       },
@@ -10577,6 +11926,153 @@
         ],
         "title": "PermissionGrantResponse"
       },
+      "PersonAttendanceRow": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "employee_code": {
+            "type": "string",
+            "title": "Employee Code"
+          },
+          "days_worked": {
+            "type": "number",
+            "title": "Days Worked"
+          },
+          "at_office": {
+            "type": "integer",
+            "title": "At Office"
+          },
+          "work_from_home": {
+            "type": "integer",
+            "title": "Work From Home"
+          },
+          "on_duty": {
+            "type": "integer",
+            "title": "On Duty"
+          },
+          "weekend_or_holiday_working": {
+            "type": "integer",
+            "title": "Weekend Or Holiday Working"
+          },
+          "leave_days": {
+            "type": "number",
+            "title": "Leave Days"
+          },
+          "comp_off": {
+            "type": "integer",
+            "title": "Comp Off"
+          },
+          "absent": {
+            "type": "integer",
+            "title": "Absent"
+          },
+          "total_minutes": {
+            "type": "integer",
+            "title": "Total Minutes"
+          },
+          "average_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Minutes"
+          },
+          "late_count": {
+            "type": "integer",
+            "title": "Late Count"
+          },
+          "average_in_minute": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average In Minute"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "employee_code",
+          "days_worked",
+          "at_office",
+          "work_from_home",
+          "on_duty",
+          "weekend_or_holiday_working",
+          "leave_days",
+          "comp_off",
+          "absent",
+          "total_minutes",
+          "average_minutes",
+          "late_count",
+          "average_in_minute"
+        ],
+        "title": "PersonAttendanceRow"
+      },
+      "PersonLeaveRow": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "employee_code": {
+            "type": "string",
+            "title": "Employee Code"
+          },
+          "leave_days": {
+            "type": "number",
+            "title": "Leave Days"
+          },
+          "full_days": {
+            "type": "integer",
+            "title": "Full Days"
+          },
+          "half_days": {
+            "type": "integer",
+            "title": "Half Days"
+          },
+          "comp_off_days": {
+            "type": "integer",
+            "title": "Comp Off Days"
+          },
+          "upcoming_days": {
+            "type": "number",
+            "title": "Upcoming Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "employee_code",
+          "leave_days",
+          "full_days",
+          "half_days",
+          "comp_off_days",
+          "upcoming_days"
+        ],
+        "title": "PersonLeaveRow"
+      },
       "ProjectCreateRequest": {
         "properties": {
           "name": {
@@ -10981,6 +12477,34 @@
               }
             ],
             "title": "Longitude"
+          },
+          "work_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "at_office",
+                  "work_from_home",
+                  "on_duty"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Mode"
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark"
           }
         },
         "type": "object",
@@ -12720,6 +14244,29 @@
         },
         "type": "object",
         "title": "TaskUpdateRequest"
+      },
+      "TypeCount": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "meaning",
+          "count"
+        ],
+        "title": "TypeCount"
       },
       "UserCreateRequest": {
         "properties": {

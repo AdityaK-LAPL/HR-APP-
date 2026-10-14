@@ -21,6 +21,7 @@ function stubGeolocation(result: 'ok' | 'denied') {
 
 afterEach(() => {
   Reflect.deleteProperty(navigator, 'geolocation')
+  localStorage.clear()
 })
 
 function mockToday(item: ReturnType<typeof day> | null) {
@@ -52,9 +53,27 @@ describe('Attendance', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Punch in' }))
     await waitFor(() => expect(seen.seen).toHaveLength(1))
     expect(geo).toHaveBeenCalledTimes(1)
-    expect(seen.seen[0]?.body).toEqual({ latitude: 12.971612, longitude: 77.594612 })
+    expect(seen.seen[0]?.body).toEqual({ latitude: 12.971612, longitude: 77.594612, work_mode: 'at_office', remark: null })
     expect(await screen.findByText(/punched in at/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Punch out' })).toBeInTheDocument()
+  })
+
+  it('sends how the person is working today, with a place for an on-duty day', async () => {
+    mockSession(employee)
+    stubGeolocation('ok')
+    const seen = spy()
+    server.use(http.post(`${BASE}/attendance/punch-in`, async ({ request }) => { await seen.record(request); return HttpResponse.json(day({ work_mode: 'on_duty', remark: 'KSB Coimbatore' })) }))
+    renderApp('/attendance')
+    const user = userEvent.setup()
+    const group = await screen.findByRole('group', { name: 'Where are you working today?' })
+    expect(within(group).getByRole('button', { name: 'Office' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByLabelText(/Where\? \(customer or place\)/)).not.toBeInTheDocument()
+    await user.click(within(group).getByRole('button', { name: 'On duty' }))
+    await user.type(screen.getByLabelText(/Where\? \(customer or place\)/), ' KSB Coimbatore ')
+    await user.click(screen.getByRole('button', { name: 'Punch in' }))
+    await waitFor(() => expect(seen.seen).toHaveLength(1))
+    expect(seen.seen[0]?.body).toMatchObject({ work_mode: 'on_duty', remark: 'KSB Coimbatore' })
+    expect(localStorage.getItem('opsflow.work-mode')).toBe('on_duty') // offered again tomorrow, never forced
   })
 
   it('still punches in when location is denied, and says the location was not recorded', async () => {
@@ -68,7 +87,7 @@ describe('Attendance', () => {
     renderApp('/attendance')
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Punch in' }))
     await waitFor(() => expect(seen.seen).toHaveLength(1))
-    expect(seen.seen[0]?.body).toEqual({ latitude: null, longitude: null })
+    expect(seen.seen[0]?.body).toEqual({ latitude: null, longitude: null, work_mode: 'at_office', remark: null })
     expect(await screen.findByText(/location permission was denied/i)).toBeInTheDocument()
   })
 
@@ -83,7 +102,7 @@ describe('Attendance', () => {
     await user.click(screen.getByRole('button', { name: 'Punch in' }))
     await waitFor(() => expect(seen.seen).toHaveLength(1))
     expect(geo).not.toHaveBeenCalled()
-    expect(seen.seen[0]?.body).toEqual({ latitude: null, longitude: null })
+    expect(seen.seen[0]?.body).toEqual({ latitude: null, longitude: null, work_mode: 'at_office', remark: null })
   })
 
   it('confirms before punching out, then shows the finished day', async () => {

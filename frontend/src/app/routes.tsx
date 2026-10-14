@@ -37,6 +37,8 @@ const SCREENS: Record<string, RoleScreens> = {
   calendar: everyone(<Screen.CalendarPage />),
   users: { manager: <Screen.TeamPage />, owner: <Screen.TeamPage /> },
   reports: { owner: <Screen.ReportsPage />, manager: <Screen.ReportsPage /> },
+  'attendance-analytics': { owner: <Screen.AttendanceAnalyticsPage />, manager: <Screen.AttendanceAnalyticsPage /> },
+  'company-settings': { owner: <Screen.CompanySettingsPage /> },
   permissions: { owner: <Screen.PermissionsPage /> },
   'audit-logs': { owner: <Screen.AuditLogsPage /> },
 }

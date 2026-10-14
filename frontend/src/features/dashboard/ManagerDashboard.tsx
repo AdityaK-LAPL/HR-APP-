@@ -14,7 +14,7 @@ import { StatusBars } from '@/features/reports/StatusBars'
 import { useLeaveOn } from '@/features/reports/queries'
 import { useTasks } from '@/features/tasks/queries'
 import { countOf, useServiceSummary, useSubtree, useTaskSummary, useWorkload } from '@/features/team/queries'
-import { formatDate, inclusiveDays } from '@/lib/dates'
+import { formatDate, leaveDays } from '@/lib/dates'
 import { PRIORITY, TASK_STATUS } from '@/lib/labels'
 
 const ACTIVE_CALL_STATUSES = [
@@ -108,7 +108,7 @@ export function ManagerDashboard() {
                   <Link to="/leaves">{nameOf(leave.employee_id, '…')}</Link>
                   <span>
                     {formatDate(leave.start_date)}
-                    {leave.start_date === leave.end_date ? '' : ` – ${formatDate(leave.end_date)}`} · {inclusiveDays(leave.start_date, leave.end_date)}d
+                    {leave.start_date === leave.end_date ? '' : ` – ${formatDate(leave.end_date)}`} · {leaveDays(leave.leave_kind, leave.start_date, leave.end_date)}d
                   </span>
                 </li>
               ))}

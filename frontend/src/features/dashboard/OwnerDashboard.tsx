@@ -14,7 +14,7 @@ import { StatusBars } from '@/features/reports/StatusBars'
 import { useLeaveOn } from '@/features/reports/queries'
 import { useTasks } from '@/features/tasks/queries'
 import { countOf, useServiceSummary, useTaskSummary, useVisibleUsers, useWorkload } from '@/features/team/queries'
-import { formatDate, formatDateTime, inclusiveDays } from '@/lib/dates'
+import { formatDate, formatDateTime, leaveDays } from '@/lib/dates'
 import { TASK_STATUS } from '@/lib/labels'
 
 const ACTIVE_CALL_STATUSES = [
@@ -100,7 +100,7 @@ export function OwnerDashboard() {
                   </span>
                   <span>
                     {formatDate(leave.start_date)}
-                    {leave.start_date === leave.end_date ? '' : ` – ${formatDate(leave.end_date)}`} · {inclusiveDays(leave.start_date, leave.end_date)}d
+                    {leave.start_date === leave.end_date ? '' : ` – ${formatDate(leave.end_date)}`} · {leaveDays(leave.leave_kind, leave.start_date, leave.end_date)}d
                   </span>
                 </li>
               ))}

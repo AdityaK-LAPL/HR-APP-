@@ -5,9 +5,10 @@ import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
-import { Textarea } from '@/components/ui/fields'
+import { Select, Textarea } from '@/components/ui/fields'
 import { useCompanyToday } from '@/features/config/useCompanyToday'
-import { inclusiveDays } from '@/lib/dates'
+import { leaveDays } from '@/lib/dates'
+import { LEAVE_KIND, type LeaveKind } from '@/lib/labels'
 import { applyApiError } from '@/lib/forms'
 import { useApplyLeave } from './queries'
 
@@ -15,6 +16,7 @@ interface LeaveFormValues {
   start_date: string
   end_date: string
   reason: string
+  leave_kind: LeaveKind
 }
 
 /** Apply for leave. The server routes the request to your manager; nothing is decided here. */
@@ -38,15 +40,21 @@ function LeaveForm({ onClose, apply }: { onClose: () => void; apply: ReturnType<
     setError,
     control,
     formState: { errors },
-  } = useForm<LeaveFormValues>({ defaultValues: { start_date: today, end_date: today, reason: '' } })
+  } = useForm<LeaveFormValues>({ defaultValues: { start_date: today, end_date: today, reason: '', leave_kind: 'full_day' } })
 
-  const [start, end] = useWatch({ control, name: ['start_date', 'end_date'] })
-  const days = start && end && end >= start ? inclusiveDays(start, end) : null
+  const [start, end, kind] = useWatch({ control, name: ['start_date', 'end_date', 'leave_kind'] })
+  const halfDay = kind === 'half_day'
+  const days = start && end && end >= start ? leaveDays(kind, start, halfDay ? start : end) : null
 
   const onSubmit = handleSubmit((values) => {
     setFormError(null)
     apply.mutate(
-      { start_date: values.start_date, end_date: values.end_date, reason: values.reason.trim() || null },
+      {
+        start_date: values.start_date,
+        end_date: values.leave_kind === 'half_day' ? values.start_date : values.end_date,
+        reason: values.reason.trim() || null,
+        leave_kind: values.leave_kind,
+      },
       {
         onSuccess: () => {
           toast.success('Leave request sent for approval.')
@@ -61,28 +69,42 @@ function LeaveForm({ onClose, apply }: { onClose: () => void; apply: ReturnType<
     <>
       <form onSubmit={onSubmit} noValidate className="stack">
         {formError && <Alert tone="error">{formError}</Alert>}
+        <Select
+          label="Type of leave"
+          options={(Object.keys(LEAVE_KIND) as LeaveKind[]).map((value) => ({ value, label: LEAVE_KIND[value] }))}
+          hint={
+            kind === 'comp_off'
+              ? 'A day off in return for working on a weekly off or a holiday. It does not use up your leave - say which day you worked in the reason.'
+              : kind === 'half_day'
+                ? 'You work the other half of the day; it counts as half a day of leave.'
+                : undefined
+          }
+          {...register('leave_kind')}
+        />
         <div className="form-grid two">
           <Input
-            label="From"
+            label={halfDay ? 'Date' : 'From'}
             type="date"
             required
             error={errors.start_date?.message}
             {...register('start_date', { required: 'Choose the first day of leave.' })}
           />
-          <Input
-            label="To"
-            type="date"
-            required
-            error={errors.end_date?.message}
-            {...register('end_date', {
-              required: 'Choose the last day of leave.',
-              validate: (value, form) => value >= form.start_date || 'The last day cannot be before the first day.',
-            })}
-          />
+          {!halfDay && (
+            <Input
+              label="To"
+              type="date"
+              required
+              error={errors.end_date?.message}
+              {...register('end_date', {
+                required: 'Choose the last day of leave.',
+                validate: (value, form) => value >= form.start_date || 'The last day cannot be before the first day.',
+              })}
+            />
+          )}
         </div>
         {days !== null && (
           <p aria-live="polite" style={{ fontSize: 13 }}>
-            {days} {days === 1 ? 'day' : 'days'} of leave
+            {kind === 'comp_off' ? 'Compensatory off - counts as 0 days of leave' : `${days} ${days === 1 ? 'day' : 'days'} of leave`}
           </p>
         )}
         <Textarea

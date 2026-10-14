@@ -19,6 +19,7 @@ from app.models.mixins import UUIDPrimaryKeyMixin
 
 ATTENDANCE_EVENT_TYPES = ("punch_in", "punch_out")
 ATTENDANCE_STATUSES = ("present", "partial", "absent", "on_leave")
+WORK_MODES = ("at_office", "work_from_home", "on_duty")
 
 
 class AttendanceEvent(Base, UUIDPrimaryKeyMixin):
@@ -46,6 +47,9 @@ class AttendanceDay(Base, UUIDPrimaryKeyMixin):
     __tablename__ = "attendance_days"
     __table_args__ = (
         CheckConstraint(f"status in {ATTENDANCE_STATUSES!r}", name="status_valid"),
+        CheckConstraint(
+            f"work_mode is null or work_mode in {WORK_MODES!r}", name="work_mode_valid"
+        ),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -61,3 +65,6 @@ class AttendanceDay(Base, UUIDPrimaryKeyMixin):
     punch_out_location: Mapped[str | None] = mapped_column(Text)
     total_duration_minutes: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="present")
+    # Chosen at punch-in: where the person is working today, plus a remark ("KSB Coimbatore").
+    work_mode: Mapped[str | None] = mapped_column(String(20))
+    remark: Mapped[str | None] = mapped_column(Text)

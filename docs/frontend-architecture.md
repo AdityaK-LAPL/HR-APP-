@@ -77,6 +77,7 @@ frontend/src/
     tasks/ projects/ leave/ eod/ attendance/ calendar/
     service/              customers, machines, calls, visits, reports
     users/ hierarchy/ audit/ reports/ notifications/ attachments/
+    company/              Attendance analytics (+ Excel downloads panel), Company settings (weekly off, holidays); lib/download.ts saves API files
         each feature:  api.ts (typed calls + query keys), hooks.ts (useX/useCreateX…),
                        components/, pages/
   components/

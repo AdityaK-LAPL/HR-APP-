@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api } from '@/api/client'
 import type { Schema } from '@/api/types'
 import type { Coordinates } from '@/lib/geolocation'
+import type { WorkMode } from '@/lib/labels'
 
 export type AttendanceDay = Schema<'AttendanceDayResponse'>
 export type AttendanceEvent = Schema<'AttendanceEventResponse'>
@@ -63,13 +64,21 @@ export function useAttendanceEvents(userId: string, workDate: string | null) {
   })
 }
 
+export interface PunchInput {
+  coordinates: Coordinates | null
+  /** Punch-in only: where the person is working today, and an optional remark for the reports. */
+  workMode?: WorkMode
+  remark?: string
+}
+
 export function usePunch(kind: 'in' | 'out') {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (coordinates: Coordinates | null) =>
+    mutationFn: ({ coordinates, workMode, remark }: PunchInput) =>
       api.post<AttendanceDay>(`/attendance/punch-${kind}`, {
         latitude: coordinates?.latitude ?? null,
         longitude: coordinates?.longitude ?? null,
+        ...(kind === 'in' ? { work_mode: workMode ?? 'at_office', remark: remark?.trim() || null } : {}),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance'] }),
   })

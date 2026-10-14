@@ -18,11 +18,18 @@ from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 LEAVE_STATUSES = ("pending", "approved", "rejected", "cancelled")
 LEAVE_DECISIONS = ("approved", "rejected")
+LEAVE_KINDS = ("full_day", "half_day", "comp_off")
 
 
 class LeaveRequest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "leave_requests"
-    __table_args__ = (CheckConstraint(f"status in {LEAVE_STATUSES!r}", name="status_valid"),)
+    __table_args__ = (
+        CheckConstraint(f"status in {LEAVE_STATUSES!r}", name="status_valid"),
+        CheckConstraint(f"leave_kind in {LEAVE_KINDS!r}", name="leave_kind_valid"),
+        CheckConstraint(
+            "leave_kind <> 'half_day' or start_date = end_date", name="half_day_is_one_day"
+        ),
+    )
 
     employee_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -34,6 +41,9 @@ class LeaveRequest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     reason: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
+    # full_day = the whole range counts; half_day = one date, counts 0.5; comp_off = a day taken in
+    # lieu of weekly-off / holiday working, counts 0.
+    leave_kind: Mapped[str] = mapped_column(String(20), nullable=False, server_default="full_day")
     current_approver_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), index=True
     )

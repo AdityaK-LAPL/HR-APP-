@@ -34,6 +34,8 @@ export const leave = (over: Partial<Schema<'LeaveResponse'>> = {}): Schema<'Leav
   end_date: '2026-03-12',
   reason: 'Family function',
   status: 'pending',
+  leave_kind: 'full_day',
+  days: 3,
   current_approver_id: manager.id,
   created_at: '2026-03-04T05:00:00Z',
   updated_at: '2026-03-04T05:00:00Z',
@@ -50,6 +52,8 @@ export const day = (over: Partial<Schema<'AttendanceDayResponse'>> = {}): Schema
   punch_out_location: null,
   total_duration_minutes: null,
   status: 'present',
+  work_mode: 'at_office',
+  remark: null,
   ...over,
 })
 

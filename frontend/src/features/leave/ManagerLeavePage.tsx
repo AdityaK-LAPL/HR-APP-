@@ -12,7 +12,8 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { useAuth } from '@/features/auth/authContext'
 import { usePeople } from '@/features/people/usePeople'
 import { useVisiblePeopleOptions } from '@/features/team/queries'
-import { formatDate, formatDateTime, inclusiveDays } from '@/lib/dates'
+import { formatDate, formatDateTime, leaveDays } from '@/lib/dates'
+import { LEAVE_KIND } from '@/lib/labels'
 import { LEAVE_STATUS, optionsOf } from '@/lib/labels'
 import { pageNumber, useUrlParams } from '@/lib/useUrlParams'
 import { ApplyLeaveDialog } from './ApplyLeaveDialog'
@@ -58,7 +59,8 @@ export function ManagerLeavePage() {
   const columns: Column<Leave>[] = [
     ...(mine ? [] : [{ key: 'who', header: 'Employee', primary: true, cell: (l: Leave) => nameOf(l.employee_id, '…') }]),
     { key: 'dates', header: 'Dates', primary: mine, cell: range },
-    { key: 'days', header: 'Days', cell: (l) => inclusiveDays(l.start_date, l.end_date) },
+    { key: 'kind', header: 'Type', cell: (l) => LEAVE_KIND[l.leave_kind] },
+    { key: 'days', header: 'Days', cell: (l) => leaveDays(l.leave_kind, l.start_date, l.end_date) },
     { key: 'status', header: 'Status', cell: (l) => <StatusBadge table={LEAVE_STATUS} value={l.status} /> },
     {
       key: 'approver',

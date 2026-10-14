@@ -1175,6 +1175,161 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/attendance-analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Attendance Analytics */
+        get: operations["attendance_analytics_api_v1_reports_attendance_analytics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/leave-analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Leave Analytics */
+        get: operations["leave_analytics_api_v1_reports_leave_analytics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/exports/attendance-monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Attendance Monthly */
+        get: operations["export_attendance_monthly_api_v1_reports_exports_attendance_monthly_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/exports/attendance-daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Attendance Daily */
+        get: operations["export_attendance_daily_api_v1_reports_exports_attendance_daily_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/exports/leave-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Leave Card */
+        get: operations["export_leave_card_api_v1_reports_exports_leave_card_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/exports/attendance-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Attendance Summary */
+        get: operations["export_attendance_summary_api_v1_reports_exports_attendance_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company Settings */
+        get: operations["get_company_settings_api_v1_company_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Company Settings */
+        patch: operations["update_company_settings_api_v1_company_settings_patch"];
+        trace?: never;
+    };
+    "/api/v1/company/holidays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Holidays */
+        get: operations["list_holidays_api_v1_company_holidays_get"];
+        put?: never;
+        /** Add Holiday */
+        post: operations["add_holiday_api_v1_company_holidays_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/company/holidays/{holiday_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Holiday */
+        delete: operations["remove_holiday_api_v1_company_holidays__holiday_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1273,6 +1428,39 @@ export interface components {
             /** Download Url */
             download_url: string;
         };
+        /** AttendanceAnalyticsResponse */
+        AttendanceAnalyticsResponse: {
+            /** Month */
+            month: string;
+            /**
+             * First Day
+             * Format: date
+             */
+            first_day: string;
+            /**
+             * Last Day
+             * Format: date
+             */
+            last_day: string;
+            /** Employees */
+            employees: number;
+            /** Working Days */
+            working_days: number;
+            /** Average Attendance Percent */
+            average_attendance_percent: number | null;
+            /** Average Minutes Per Day */
+            average_minutes_per_day: number | null;
+            /** Late Arrivals */
+            late_arrivals: number;
+            /** Leave Days */
+            leave_days: number;
+            /** By Type */
+            by_type: components["schemas"]["TypeCount"][];
+            /** Daily */
+            daily: components["schemas"]["DailyAttendancePoint"][];
+            /** People */
+            people: components["schemas"]["PersonAttendanceRow"][];
+        };
         /** AttendanceDayResponse */
         AttendanceDayResponse: {
             /**
@@ -1305,6 +1493,10 @@ export interface components {
              * @enum {string}
              */
             status: "present" | "partial" | "absent" | "on_leave";
+            /** Work Mode */
+            work_mode: ("at_office" | "work_from_home" | "on_duty") | null;
+            /** Remark */
+            remark: string | null;
         };
         /** AttendanceEventResponse */
         AttendanceEventResponse: {
@@ -1452,6 +1644,27 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /** CompanySettingsResponse */
+        CompanySettingsResponse: {
+            /** Company Name */
+            company_name: string;
+            /** Weekly Off Days */
+            weekly_off_days: number[];
+            /**
+             * Late After
+             * Format: time
+             */
+            late_after: string;
+        };
+        /** CompanySettingsUpdateRequest */
+        CompanySettingsUpdateRequest: {
+            /** Company Name */
+            company_name?: string | null;
+            /** Weekly Off Days */
+            weekly_off_days?: number[] | null;
+            /** Late After */
+            late_after?: string | null;
+        };
         /** CustomerContactCreateRequest */
         CustomerContactCreateRequest: {
             /** Name */
@@ -1564,6 +1777,32 @@ export interface components {
             notes?: string | null;
             /** Is Active */
             is_active?: boolean | null;
+        };
+        /** DailyAttendancePoint */
+        DailyAttendancePoint: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Weekly Off */
+            weekly_off: boolean;
+            /** Holiday */
+            holiday: boolean;
+            /** At Office */
+            at_office: number;
+            /** Work From Home */
+            work_from_home: number;
+            /** On Duty */
+            on_duty: number;
+            /** Weekend Or Holiday Working */
+            weekend_or_holiday_working: number;
+            /** On Leave */
+            on_leave: number;
+            /** Comp Off */
+            comp_off: number;
+            /** Absent */
+            absent: number;
         };
         /** EodCreateRequest */
         EodCreateRequest: {
@@ -1684,6 +1923,58 @@ export interface components {
             /** Manager Id */
             manager_id: string | null;
         };
+        /** HolidayCreateRequest */
+        HolidayCreateRequest: {
+            /**
+             * Holiday Date
+             * Format: date
+             */
+            holiday_date: string;
+            /** Name */
+            name: string;
+        };
+        /** HolidayResponse */
+        HolidayResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Holiday Date
+             * Format: date
+             */
+            holiday_date: string;
+            /** Name */
+            name: string;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /** LeaveAnalyticsResponse */
+        LeaveAnalyticsResponse: {
+            /** Financial Year */
+            financial_year: number;
+            /**
+             * First Day
+             * Format: date
+             */
+            first_day: string;
+            /**
+             * Last Day
+             * Format: date
+             */
+            last_day: string;
+            /** Total Leave Days */
+            total_leave_days: number;
+            /** Taken Days */
+            taken_days: number;
+            /** Upcoming Days */
+            upcoming_days: number;
+            /** By Month */
+            by_month: components["schemas"]["LeaveMonthPoint"][];
+            /** People */
+            people: components["schemas"]["PersonLeaveRow"][];
+        };
         /** LeaveCreateRequest */
         LeaveCreateRequest: {
             /**
@@ -1698,6 +1989,12 @@ export interface components {
             end_date: string;
             /** Reason */
             reason?: string | null;
+            /**
+             * Leave Kind
+             * @default full_day
+             * @enum {string}
+             */
+            leave_kind: "full_day" | "half_day" | "comp_off";
         };
         /** LeaveDecisionRequest */
         LeaveDecisionRequest: {
@@ -1714,6 +2011,19 @@ export interface components {
             page: number;
             /** Page Size */
             page_size: number;
+        };
+        /** LeaveMonthPoint */
+        LeaveMonthPoint: {
+            /** Month */
+            month: string;
+            /** Leave Days */
+            leave_days: number;
+            /** Full Days */
+            full_days: number;
+            /** Half Days */
+            half_days: number;
+            /** Comp Off Days */
+            comp_off_days: number;
         };
         /** LeaveRejectRequest */
         LeaveRejectRequest: {
@@ -1756,6 +2066,11 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "approved" | "rejected" | "cancelled";
+            /**
+             * Leave Kind
+             * @enum {string}
+             */
+            leave_kind: "full_day" | "half_day" | "comp_off";
             /** Current Approver Id */
             current_approver_id: string | null;
             /**
@@ -1768,6 +2083,8 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Days */
+            readonly days: number;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -2040,6 +2357,64 @@ export interface components {
             /** Revoked At */
             revoked_at: string | null;
         };
+        /** PersonAttendanceRow */
+        PersonAttendanceRow: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string;
+            /** Employee Code */
+            employee_code: string;
+            /** Days Worked */
+            days_worked: number;
+            /** At Office */
+            at_office: number;
+            /** Work From Home */
+            work_from_home: number;
+            /** On Duty */
+            on_duty: number;
+            /** Weekend Or Holiday Working */
+            weekend_or_holiday_working: number;
+            /** Leave Days */
+            leave_days: number;
+            /** Comp Off */
+            comp_off: number;
+            /** Absent */
+            absent: number;
+            /** Total Minutes */
+            total_minutes: number;
+            /** Average Minutes */
+            average_minutes: number | null;
+            /** Late Count */
+            late_count: number;
+            /** Average In Minute */
+            average_in_minute: number | null;
+        };
+        /** PersonLeaveRow */
+        PersonLeaveRow: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string;
+            /** Employee Code */
+            employee_code: string;
+            /** Leave Days */
+            leave_days: number;
+            /** Full Days */
+            full_days: number;
+            /** Half Days */
+            half_days: number;
+            /** Comp Off Days */
+            comp_off_days: number;
+            /** Upcoming Days */
+            upcoming_days: number;
+        };
         /** ProjectCreateRequest */
         ProjectCreateRequest: {
             /** Name */
@@ -2173,6 +2548,10 @@ export interface components {
             latitude?: number | null;
             /** Longitude */
             longitude?: number | null;
+            /** Work Mode */
+            work_mode?: ("at_office" | "work_from_home" | "on_duty") | null;
+            /** Remark */
+            remark?: string | null;
         };
         /** ResetPasswordRequest */
         ResetPasswordRequest: {
@@ -2697,6 +3076,15 @@ export interface components {
             task_date?: string | null;
             /** Due Date */
             due_date?: string | null;
+        };
+        /** TypeCount */
+        TypeCount: {
+            /** Code */
+            code: string;
+            /** Meaning */
+            meaning: string;
+            /** Count */
+            count: number;
         };
         /** UserCreateRequest */
         UserCreateRequest: {
@@ -8780,6 +9168,742 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ServiceActivityReportResponse"];
                 };
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    attendance_analytics_api_v1_reports_attendance_analytics_get: {
+        parameters: {
+            query: {
+                /** @description YYYY-MM */
+                month: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttendanceAnalyticsResponse"];
+                };
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    leave_analytics_api_v1_reports_leave_analytics_get: {
+        parameters: {
+            query?: {
+                /** @description The year the financial year (April-March) starts in */
+                financial_year?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaveAnalyticsResponse"];
+                };
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    export_attendance_monthly_api_v1_reports_exports_attendance_monthly_get: {
+        parameters: {
+            query: {
+                employee_id: string;
+                /** @description YYYY-MM */
+                month: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    export_attendance_daily_api_v1_reports_exports_attendance_daily_get: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    export_leave_card_api_v1_reports_exports_leave_card_get: {
+        parameters: {
+            query: {
+                employee_id: string;
+                start_date?: string | null;
+                end_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    export_attendance_summary_api_v1_reports_exports_attendance_summary_get: {
+        parameters: {
+            query: {
+                /** @description YYYY-MM */
+                month: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_company_settings_api_v1_company_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanySettingsResponse"];
+                };
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_company_settings_api_v1_company_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanySettingsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanySettingsResponse"];
+                };
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_holidays_api_v1_company_holidays_get: {
+        parameters: {
+            query?: {
+                year?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HolidayResponse"][];
+                };
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    add_holiday_api_v1_company_holidays_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HolidayCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HolidayResponse"];
+                };
+            };
+            /** @description Not authenticated / session expired */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Visible but not permitted, or bad CSRF */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or outside the caller's visibility */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict with current state */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid request (see error.details) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove_holiday_api_v1_company_holidays__holiday_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                holiday_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Not authenticated / session expired */
             401: {

@@ -93,6 +93,14 @@ export function inclusiveDays(fromDate: string, toDate: string): number {
   return Math.round(ms / 86_400_000) + 1
 }
 
+/** What a leave request counts against the person: every day of a full-day request, half a day for a
+ * half day, nothing for a compensatory off. Same rule as the server (`leave_days`). */
+export function leaveDays(kind: 'full_day' | 'half_day' | 'comp_off', fromDate: string, toDate: string): number {
+  if (kind === 'half_day') return 0.5
+  if (kind === 'comp_off') return 0
+  return inclusiveDays(fromDate, toDate)
+}
+
 /** `YYYY-MM-DD` n days before the given date (calendar arithmetic, no timezone involved). */
 export function shiftDate(date: string, days: number): string {
   const moved = new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000)

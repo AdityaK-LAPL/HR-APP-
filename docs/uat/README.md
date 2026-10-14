@@ -4,7 +4,7 @@ UAT is the last check before the company relies on the app: **the people who wil
 
 | File | What it is |
 |---|---|
-| `UAT-scenarios.xlsx` | **The working copy.** One sheet per role plus cross-cutting checks (116 scenarios), a Cast & setup sheet, a Defects log and a Summary that counts results by itself, with a sign-off block |
+| `UAT-scenarios.xlsx` | **The working copy.** One sheet per role plus cross-cutting checks (123 scenarios), a Cast & setup sheet, a Defects log and a Summary that counts results by itself, with a sign-off block |
 | `UAT-scenarios.md` | The same scenarios as a printable / reviewable document |
 | `scenarios.py`, `build_uat.py` | The single source and the generator (`pip install openpyxl`, then `python build_uat.py`). Edit scenarios in `scenarios.py`, never in the generated files |
 
@@ -21,7 +21,7 @@ Every scenario has: **Test ID, Role, Steps, Expected result, Actual result, Pass
 
 ## 2. How to run it
 
-1. **Order matters.** Run the **Owner** sheet first - UAT-OWN-01 to 05 create the managers and employees (the "cast") that every other scenario uses. Then **Manager**, **Employee**, then **Cross-cutting**. Scenarios that depend on another's result say so in their steps.
+1. **Order matters.** Run the **Owner** sheet first - UAT-OWN-01 to 05 create the managers and employees (the "cast") that every other scenario uses. Then **Manager**, **Employee**, **HR reports** (the Excel downloads and the attendance analytics; needs a few days of punches and leave from the earlier sheets), then **Cross-cutting**. Scenarios that depend on another's result say so in their steps.
 2. Do the steps exactly, with the real devices. Read the screen; the words in "quotes" are the exact words on the screen.
 3. Compare with **Expected result**. Write what *actually* happened in **Actual result** (always for a Fail; one line is enough when it passed).
 4. Choose **Pass**, **Fail**, **Blocked** (you could not do the steps) or **N/A** (does not apply - say why in Notes).
@@ -44,7 +44,7 @@ Every scenario has: **Test ID, Role, Steps, Expected result, Actual result, Pass
 
 ## 4. What was already checked before UAT
 
-So testers need not re-prove the technical basics: the automated backend suite (198 tests), frontend suite (364 tests), the role-by-role API audit (232 checks), the authorization sweep (243 checks), browser audits on desktop / tablet / phone sizes with accessibility checks, and a **UAT dress rehearsal** (`frontend/e2e/uat-rehearsal.mjs`, 30 checks) that built this cast and confirmed that the screen texts promised in the scenarios are really on the screens. UAT is about *fitness for the business*, on real devices, by real users.
+So testers need not re-prove the technical basics: the automated backend suite (245 tests), frontend suite (381 tests), the role-by-role API audit (232 checks), the authorization sweep (276 checks), browser audits on desktop / tablet / phone sizes with accessibility checks, and a **UAT dress rehearsal** (`frontend/e2e/uat-rehearsal.mjs`, 30 checks) that built this cast and confirmed that the screen texts promised in the scenarios are really on the screens. UAT is about *fitness for the business*, on real devices, by real users.
 
 ## 5. Sign-off
 

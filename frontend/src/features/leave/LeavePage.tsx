@@ -12,7 +12,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Select } from '@/components/ui/fields'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { usePeople } from '@/features/people/usePeople'
-import { formatDate, formatDateTime, inclusiveDays } from '@/lib/dates'
+import { formatDate, formatDateTime, leaveDays } from '@/lib/dates'
+import { LEAVE_KIND } from '@/lib/labels'
 import { LEAVE_STATUS, optionsOf } from '@/lib/labels'
 import { pageNumber, useUrlParams } from '@/lib/useUrlParams'
 import { ApplyLeaveDialog } from './ApplyLeaveDialog'
@@ -38,10 +39,11 @@ export function LeavePage() {
       cell: (l) =>
         l.start_date === l.end_date ? formatDate(l.start_date) : `${formatDate(l.start_date)} – ${formatDate(l.end_date)}`,
     },
+    { key: 'kind', header: 'Type', cell: (l) => LEAVE_KIND[l.leave_kind] },
     {
       key: 'days',
       header: 'Days',
-      cell: (l) => inclusiveDays(l.start_date, l.end_date),
+      cell: (l) => leaveDays(l.leave_kind, l.start_date, l.end_date),
     },
     { key: 'status', header: 'Status', cell: (l) => <StatusBadge table={LEAVE_STATUS} value={l.status} /> },
     {
